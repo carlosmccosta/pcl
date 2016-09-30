@@ -19,6 +19,7 @@ set(incs
   "include/pcl/${SUBSYS_NAME}/convergence_criteria.h"
   "include/pcl/${SUBSYS_NAME}/default_convergence_criteria.h"
   "include/pcl/${SUBSYS_NAME}/correspondence_estimation.h"
+  "include/pcl/${SUBSYS_NAME}/correspondence_estimation_lookup_table.h"
   "include/pcl/${SUBSYS_NAME}/correspondence_estimation_normal_shooting.h"
   "include/pcl/${SUBSYS_NAME}/correspondence_estimation_backprojection.h"
   "include/pcl/${SUBSYS_NAME}/correspondence_estimation_organized_projection.h"
@@ -84,6 +85,7 @@ set(incs
 set(impl_incs
   "include/pcl/${SUBSYS_NAME}/impl/default_convergence_criteria.hpp"
   "include/pcl/${SUBSYS_NAME}/impl/correspondence_estimation.hpp"
+  "include/pcl/${SUBSYS_NAME}/impl/correspondence_estimation_lookup_table.hpp"
   "include/pcl/${SUBSYS_NAME}/impl/correspondence_estimation_normal_shooting.hpp"
   "include/pcl/${SUBSYS_NAME}/impl/correspondence_estimation_backprojection.hpp"
   "include/pcl/${SUBSYS_NAME}/impl/correspondence_estimation_organized_projection.hpp"
@@ -132,6 +134,7 @@ set(impl_incs
 set(srcs
   src/registration.cpp
   src/correspondence_estimation.cpp
+  src/correspondence_estimation_lookup_table.cpp
   src/correspondence_estimation_normal_shooting.cpp
   src/correspondence_estimation_backprojection.cpp
   src/correspondence_estimation_organized_projection.cpp
