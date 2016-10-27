@@ -42,9 +42,9 @@
 #define PCL_REGISTRATION_IMPL_CORRESPONDENCE_ESTIMATION_LOOKUP_TABLE_H_
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-template <typename PointT>
+template <typename PointT, typename DistanceT>
 bool
-pcl::registration::CorrespondenceLookupTable<PointT>::computeLookupTableBounds (const pcl::PointCloud<PointT>& pointcloud)
+pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeLookupTableBounds (const pcl::PointCloud<PointT>& pointcloud)
 {
   if (pointcloud.size () < 2)
     return (false);
@@ -62,16 +62,26 @@ pcl::registration::CorrespondenceLookupTable<PointT>::computeLookupTableBounds (
   number_cells_x_ = std::max ((size_t)(std::ceil ((maximum_bounds_ (0) - minimum_bounds_ (0)) * cell_resolution_inverse_)), (size_t)1);
   number_cells_y_ = std::max ((size_t)(std::ceil ((maximum_bounds_ (1) - minimum_bounds_ (1)) * cell_resolution_inverse_)), (size_t)1);
   number_cells_z_ = std::max ((size_t)(std::ceil ((maximum_bounds_ (2) - minimum_bounds_ (2)) * cell_resolution_inverse_)), (size_t)1);
-  number_cells_xy_slice_ = number_cells_x_ * number_cells_y_;
+  number_cells_xy_slice_ = number_cells_x_ * number_cells_y_; // precompute the number of cells within each xy slice.
 
   return (true);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-template <typename PointT>
+template <typename PointT, typename DistanceT>
 bool
-pcl::registration::CorrespondenceLookupTable<PointT>::initLookupTable (typename pcl::search::Search<PointT>::ConstPtr tree)
+pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::initLookupTable (typename pcl::search::Search<PointT>::ConstPtr tree)
 {
+  if (initialize_lookup_table_using_euclidean_distance_transform_)
+  {
+    if (initLookupTableUsingEuclideanDistanceTransform (tree->getInputCloud (), pcl::IndicesPtr ()))
+    {
+      search_tree_ = tree;
+      return true;
+    }
+    return false;
+  }
+
   if (!computeLookupTableBounds (*(tree->getInputCloud ())))
     return (false);
 
@@ -97,7 +107,7 @@ pcl::registration::CorrespondenceLookupTable<PointT>::initLookupTable (typename 
       for (size_t x = 0; x < number_cells_x_; ++x)
       {
         search_tree_->nearestKSearch (query_point, 1, index, distance);
-        pcl::registration::CorrespondenceLookupTableCell& correspondence = lookup_table_[correspondence_number++];
+        pcl::registration::CorrespondenceLookupTableCell<DistanceT>& correspondence = lookup_table_[correspondence_number++];
         correspondence.closest_point_index = index[0];
         correspondence.distance_squared_to_closest_point = distance[0];
         query_point.x += cell_resolution_;
@@ -113,9 +123,223 @@ pcl::registration::CorrespondenceLookupTable<PointT>::initLookupTable (typename 
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-template <typename PointT>
+template <typename PointT, typename DistanceT>
 bool
-pcl::registration::CorrespondenceLookupTable<PointT>::computeCorrespondenceCellIndex (const PointT& query_point, size_t& correspondence_index, Eigen::Vector3i& correspondence_index_components)
+pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::initLookupTableUsingEuclideanDistanceTransform (typename pcl::PointCloud<PointT>::ConstPtr pointcloud, pcl::IndicesPtr discarded_indices)
+{
+  if (!computeLookupTableBounds (*pointcloud))
+    return (false);
+
+  pointcloud_ = pointcloud;
+  size_t number_cells = number_cells_z_ * number_cells_y_ * number_cells_x_;
+  lookup_table_.clear ();
+  lookup_table_.resize (number_cells);
+
+  addPointsToLookupTable (*pointcloud_, discarded_indices);
+  computeFirstPhaseMeijsterAxisX ();
+  computeSecondPhaseMeijsterAxisY ();
+  computeSecondPhaseMeijsterAxisZ ();
+  updateCellDistancesWithCellResolution ();
+
+  PCL_ERROR ("[pcl::registration::LookupTable::initLookupTableUsingEuclideanDistanceTransform] Initialized correspondence estimation LookupTable with %f resolution containing [x:%i|y:%i|z:%i]=%i cells from a point cloud with %u points\n",
+             cell_resolution_, number_cells_x_, number_cells_y_, number_cells_z_, number_cells, pointcloud_->size ());
+  return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+template <typename PointT, typename DistanceT>
+void
+pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::addPointsToLookupTable (const pcl::PointCloud<PointT>& pointcloud, pcl::IndicesPtr discarded_indices)
+{
+  size_t correspondence_index = 0;
+  Eigen::Vector3i correspondence_index_components;
+  for (size_t i = 0; i < pointcloud.size (); ++i)
+  {
+    if (computeCorrespondenceCellIndex (pointcloud[i], correspondence_index, correspondence_index_components))
+    {
+      pcl::registration::CorrespondenceLookupTableCell<DistanceT>& cell = getCorrespondence (correspondence_index);
+      if (cell.closest_point_index < 0)
+      {
+        // First point to fall within the cell.
+        cell.closest_point_index = i;
+        cell.distance_squared_to_closest_point = 0;
+      }
+      else
+      {
+        Eigen::Vector3f cell_centroid = computeCorrespondenceCellCentroid (correspondence_index_components);
+        float distance_of_existing_cell_point_to_centroid = computeSquaredDistanceToCentroid (pointcloud[cell.closest_point_index], cell_centroid);
+        float distance_of_new_cell_point_to_centroid = computeSquaredDistanceToCentroid (pointcloud[i], cell_centroid);
+
+        // Cell already has a point.
+        // If the new point is closer to the centroid it will replace the current point.
+        if (distance_of_new_cell_point_to_centroid < distance_of_existing_cell_point_to_centroid)
+        {
+          if (discarded_indices)
+            discarded_indices->push_back (cell.closest_point_index);
+          cell.closest_point_index = i;
+        }
+      }
+    }
+    else if (discarded_indices)
+    {
+      // Point is outside the lookup table bounds.
+      discarded_indices->push_back (i);
+    }
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+template <typename PointT, typename DistanceT>
+void
+pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeFirstPhaseMeijsterAxisX ()
+{
+  int number_cells_y_int = (int)number_cells_y_;
+  for (size_t z = 0; z < number_cells_z_; ++z)
+  {
+    #pragma omp parallel for
+    for (int y = 0; y < number_cells_y_int; ++y) // OpenMP supports size_t index only after version 3.0.
+    {
+      // Forward scan computes the integer distances to the closest interest cells (after they are found).
+      size_t cell_index = 1 + (size_t)y * number_cells_x_ + z * number_cells_xy_slice_;
+      for (size_t x = 1; x < number_cells_x_; ++x)
+      {
+        pcl::registration::CorrespondenceLookupTableCell<DistanceT>& previous_cell = getCorrespondence (cell_index - 1);
+        pcl::registration::CorrespondenceLookupTableCell<DistanceT>& current_cell = getCorrespondence (cell_index++);
+        if (previous_cell.distance_squared_to_closest_point >= 0)
+        {
+          current_cell.closest_point_index = previous_cell.closest_point_index;
+          current_cell.distance_squared_to_closest_point = previous_cell.distance_squared_to_closest_point + 1;
+        }
+      }
+
+      // Backwards scan propagates the integer distances of the found interest cells.
+      --cell_index;
+      for (int x = (int)number_cells_x_ - 2; x >= 0; --x)
+      {
+        pcl::registration::CorrespondenceLookupTableCell<DistanceT>& current_cell = getCorrespondence (cell_index);
+        pcl::registration::CorrespondenceLookupTableCell<DistanceT>& next_cell = getCorrespondence (cell_index-- + 1);
+        if (current_cell.closest_point_index < 0 || next_cell.distance_squared_to_closest_point < current_cell.distance_squared_to_closest_point)
+        {
+          current_cell.closest_point_index = next_cell.closest_point_index;
+          current_cell.distance_squared_to_closest_point = next_cell.distance_squared_to_closest_point + 1;
+        }
+      }
+    }
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+template <typename PointT, typename DistanceT>
+void
+pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeSecondPhaseMeijsterAxisY ()
+{
+  int number_cells_x_int = (int)number_cells_x_;
+  for (size_t z = 0; z < number_cells_z_; ++z)
+  {
+    #pragma omp parallel for
+    for (int x = 0; x < number_cells_x_int; ++x) // OpenMP supports size_t index only after version 3.0.
+    {
+      // Forward scan computes the lower envelop segments.
+      size_t cell_base_index = x + z * number_cells_xy_slice_;
+      std::vector <size_t> y_index_where_closest_interest_cell_was_found (number_cells_y_, 0); // s
+      std::vector <size_t> y_index_of_intersection_with_previous_parabola (number_cells_y_, 0); // t
+      size_t last_segment_index = 0; // q
+      DistanceT last_segment_index_distance_squared_to_closest_point = std::pow (getCorrespondence (cell_base_index).distance_squared_to_closest_point, 2);
+
+      for (size_t y = 1; y < number_cells_y_; ++y)
+      {
+        DistanceT current_cell_distance_squared_to_closest_point = std::pow (getCorrespondence (cell_base_index + y * number_cells_x_).distance_squared_to_closest_point, 2);
+        while (last_segment_index >= 0 &&
+            computeMeijsterSquaredEDT (y_index_of_intersection_with_previous_parabola[last_segment_index],
+                                       y_index_where_closest_interest_cell_was_found[last_segment_index],
+                                       last_segment_index_distance_squared_to_closest_point) >
+            computeMeijsterSquaredEDT (y_index_of_intersection_with_previous_parabola[last_segment_index],
+                                       y,
+                                       current_cell_distance_squared_to_closest_point))
+        {
+          // Fig. 3 (c) or Fig. 3 (b) cases (if q drops bellow 0).
+          // Fy either intersects or is below the current lower envelop.
+          // The current segments will either shrink or disappear.
+          --last_segment_index;
+          last_segment_index_distance_squared_to_closest_point = std::pow (getCorrespondence (cell_base_index + y_index_where_closest_interest_cell_was_found[last_segment_index] * number_cells_x_).distance_squared_to_closest_point, 2);
+        }
+
+        if (last_segment_index < 0)
+        {
+          // Fig. 3 (b) case.
+          // Fy is below the current lower envelop. All old segments are replaced by a single new segment.
+          last_segment_index = 0;
+          last_segment_index_distance_squared_to_closest_point = std::pow (getCorrespondence (cell_base_index + y_index_where_closest_interest_cell_was_found[last_segment_index] * number_cells_x_).distance_squared_to_closest_point, 2);
+          y_index_where_closest_interest_cell_was_found[0] = y;
+        }
+        else
+        {
+          // Fig. 3 (a) case if w >= number_cells_y_.
+          // Fy is above the current lower envelop. It is discarded since it does not reduce the SEDT.
+          float sep_plus_one = 1 + computeMeijsterParabolaIntersectionIndex (y_index_where_closest_interest_cell_was_found[last_segment_index],
+                                                                             y,
+                                                                             last_segment_index_distance_squared_to_closest_point,
+                                                                             current_cell_distance_squared_to_closest_point);
+          if (sep_plus_one < number_cells_y_)
+          {
+            // Fig. 3 (c) case.
+            // Fy intersects the current lower envelop. A new segment is added.
+            ++last_segment_index;
+            last_segment_index_distance_squared_to_closest_point = std::pow (getCorrespondence (cell_base_index + y_index_where_closest_interest_cell_was_found[last_segment_index] * number_cells_x_).distance_squared_to_closest_point, 2);
+            y_index_where_closest_interest_cell_was_found[last_segment_index] = y;
+            y_index_of_intersection_with_previous_parabola[last_segment_index] = sep_plus_one;
+          }
+        }
+      }
+
+      // Backwards scan computes the squared distances.
+      for (int y = (int)number_cells_y_ - 1; y >= 0; --y)
+      {
+        pcl::registration::CorrespondenceLookupTableCell<DistanceT>& current_cell = getCorrespondence (cell_base_index + y * number_cells_x_);
+        current_cell.distance_squared_to_closest_point = computeMeijsterSquaredEDT (y, y_index_where_closest_interest_cell_was_found[last_segment_index], last_segment_index_distance_squared_to_closest_point);
+        if (y == (int)y_index_of_intersection_with_previous_parabola[last_segment_index])
+        {
+          --last_segment_index;
+          last_segment_index_distance_squared_to_closest_point = std::pow (getCorrespondence (cell_base_index + y_index_where_closest_interest_cell_was_found[last_segment_index] * number_cells_x_).distance_squared_to_closest_point, 2);
+        }
+      }
+    }
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+template <typename PointT, typename DistanceT>
+void
+pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeSecondPhaseMeijsterAxisZ ()
+{
+  // todo: finish second phase of Meijster in the Z axis
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+template <typename PointT, typename DistanceT>
+void
+pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::updateCellDistancesWithCellResolution ()
+{
+  int number_cells_y_int = (int)number_cells_y_;
+  float cell_resolution_squared = cell_resolution_ * cell_resolution_;
+  for (size_t z = 0; z < number_cells_z_; ++z)
+  {
+    #pragma omp parallel for
+    for (int y = 0; y < number_cells_y_int; ++y) // OpenMP supports size_t index only after version 3.0.
+    {
+      size_t cell_index = (size_t)y * number_cells_x_ + z * number_cells_xy_slice_;
+      for (size_t x = 0; x < number_cells_x_; ++x)
+      {
+        getCorrespondence (cell_index++).distance_squared_to_closest_point *= cell_resolution_squared;
+      }
+    }
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+template <typename PointT, typename DistanceT>
+bool
+pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeCorrespondenceCellIndex (const PointT& query_point, size_t& correspondence_index, Eigen::Vector3i& correspondence_index_components)
 {
   correspondence_index_components (0) = (int)((query_point.x - minimum_bounds_ (0)) * cell_resolution_inverse_);
   correspondence_index_components (1) = (int)((query_point.y - minimum_bounds_ (1)) * cell_resolution_inverse_);
@@ -134,19 +358,9 @@ pcl::registration::CorrespondenceLookupTable<PointT>::computeCorrespondenceCellI
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-template <typename PointT>
-Eigen::Vector3f
-pcl::registration::CorrespondenceLookupTable<PointT>::computeCorrespondenceCellCentroid (const Eigen::Vector3i& correspondence_index_components)
-{
-  return (Eigen::Vector3f (minimum_bounds_ (0) + correspondence_index_components (0) * cell_resolution_,
-                           minimum_bounds_ (1) + correspondence_index_components (1) * cell_resolution_,
-                           minimum_bounds_ (2) + correspondence_index_components (2) * cell_resolution_));
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////
-template <typename PointT>
+template <typename PointT, typename DistanceT>
 bool
-pcl::registration::CorrespondenceLookupTable<PointT>::getCorrespondence (const PointT& query_point, double maximum_correspondence_distance_squared, pcl::registration::CorrespondenceLookupTableCell& correspondance)
+pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::getCorrespondence (const PointT& query_point, double maximum_correspondence_distance_squared, pcl::registration::CorrespondenceLookupTableCell<DistanceT>& correspondance)
 {
   size_t correspondence_index;
   Eigen::Vector3i correspondence_index_components;
@@ -181,8 +395,8 @@ pcl::registration::CorrespondenceLookupTable<PointT>::getCorrespondence (const P
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-template <typename PointSource, typename PointTarget, typename Scalar> bool
-pcl::registration::CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar>::initComputeReciprocal ()
+template <typename PointSource, typename PointTarget, typename Scalar, typename DistanceT> bool
+pcl::registration::CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar, DistanceT>::initComputeReciprocal ()
 {
   if (CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::initComputeReciprocal ())
   {
@@ -194,8 +408,8 @@ pcl::registration::CorrespondenceEstimationLookupTable<PointSource, PointTarget,
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-template <typename PointSource, typename PointTarget, typename Scalar> bool
-pcl::registration::CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar>::initCompute ()
+template <typename PointSource, typename PointTarget, typename Scalar, typename DistanceT> bool
+pcl::registration::CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar, DistanceT>::initCompute ()
 {
   if (CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::initCompute ())
   {
@@ -207,8 +421,8 @@ pcl::registration::CorrespondenceEstimationLookupTable<PointSource, PointTarget,
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-template <typename PointSource, typename PointTarget, typename Scalar> void
-pcl::registration::CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar>::determineCorrespondences (
+template <typename PointSource, typename PointTarget, typename Scalar, typename DistanceT> void
+pcl::registration::CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar, DistanceT>::determineCorrespondences (
     pcl::Correspondences &correspondences, double max_distance)
 {
   if (!initCompute ())
@@ -216,7 +430,7 @@ pcl::registration::CorrespondenceEstimationLookupTable<PointSource, PointTarget,
 
   double max_distance_squared = max_distance * max_distance;
   correspondences.resize (indices_->size ());
-  pcl::registration::CorrespondenceLookupTableCell correspondence_cell;
+  pcl::registration::CorrespondenceLookupTableCell<DistanceT> correspondence_cell;
   size_t number_valid_correspondences = 0;
 
   if (pcl::isSamePointType<PointSource, PointTarget> ())
@@ -257,8 +471,8 @@ pcl::registration::CorrespondenceEstimationLookupTable<PointSource, PointTarget,
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-template <typename PointSource, typename PointTarget, typename Scalar> void
-pcl::registration::CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar>::determineReciprocalCorrespondences (
+template <typename PointSource, typename PointTarget, typename Scalar, typename DistanceT> void
+pcl::registration::CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar, DistanceT>::determineReciprocalCorrespondences (
     pcl::Correspondences &correspondences, double max_distance)
 {
   if (!initCompute ())
@@ -269,8 +483,8 @@ pcl::registration::CorrespondenceEstimationLookupTable<PointSource, PointTarget,
 
   double max_distance_squared = max_distance * max_distance;
   correspondences.resize (indices_->size());
-  pcl::registration::CorrespondenceLookupTableCell correspondence_cell;
-  pcl::registration::CorrespondenceLookupTableCell reciprocal_correspondence_cell;
+  pcl::registration::CorrespondenceLookupTableCell<DistanceT> correspondence_cell;
+  pcl::registration::CorrespondenceLookupTableCell<DistanceT> reciprocal_correspondence_cell;
   unsigned int number_valid_correspondences = 0;
 
   if (pcl::isSamePointType<PointSource, PointTarget> ())

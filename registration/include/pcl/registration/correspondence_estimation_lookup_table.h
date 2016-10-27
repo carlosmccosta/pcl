@@ -64,25 +64,32 @@ namespace pcl
     /** \brief @b CorrespondenceLookupTableCell represents a match between
       * a CorrespondenceLookupTable cell and the closest point in the reference point cloud.
       *
+      * Note:
+      *   Use DistanceT=float  when initializing the lookup table using a k-d tree (the k-d tree returns floats for the distances, and as such, it should be used floats to save memory space).
+      *   Use DistanceT=double when using the Meijster Squared Euclidean Distance Transform, because the Meijster algorithm uses squared integer distances (distance between two adjacent cells is 1, not cell_resolution)
+      *   when initializing the lookup table and since it is undesirable the loss of precision to ensure correct functioning of the algorithm,
+      *   it should be used doubles, since they can store integer numbers up to 2^53 while floats only store until 2^24 (maximum value stored in the mantissa).
+      *
       * \author Carlos M. Costa
       * \ingroup registration
       */
+    template <typename DistanceT = double>
     struct CorrespondenceLookupTableCell
     {
       /** \brief Index of the closest point in the reference point cloud. */
       int closest_point_index;
 
       /** \brief Squared distance to the closest point. */
-      float distance_squared_to_closest_point;
+      DistanceT distance_squared_to_closest_point;
 
       /** \brief Empty constructor.
         * Sets \ref closest_point_index to -1, \ref distance_to_closest_point to -FLT_MAX.
         */
       inline CorrespondenceLookupTableCell ()
-      : closest_point_index (-1), distance_squared_to_closest_point (-std::numeric_limits<float>::max ()) {}
+      : closest_point_index (-1), distance_squared_to_closest_point (-std::numeric_limits<DistanceT>::max ()) {}
 
       /** \brief Constructor. */
-      inline CorrespondenceLookupTableCell (int index, float distance)
+      inline CorrespondenceLookupTableCell (int index, DistanceT distance)
       : closest_point_index (index), distance_squared_to_closest_point(distance) {}
 
       /** \brief Empty destructor. */
@@ -97,7 +104,7 @@ namespace pcl
       * \author Carlos M. Costa
       * \ingroup registration
       */
-    template <typename PointT>
+    template <typename PointT, typename DistanceT = double>
     class CorrespondenceLookupTable
     {
       public:
@@ -112,6 +119,7 @@ namespace pcl
           , number_cells_xy_slice_ (0)
           , use_search_tree_when_query_point_is_outside_lookup_table_ (true)
           , compute_distance_from_query_point_to_closest_point_ (false)
+          , initialize_lookup_table_using_euclidean_distance_transform_ (false)
           , number_of_queries_on_lookup_table_ (0)
           , number_of_queries_on_search_tree_ (0) {}
 
@@ -160,7 +168,7 @@ namespace pcl
         getNumberOfCellsZAxis () { return (number_cells_z_); }
 
         /** \brief Get a reference to the lookup table. */
-        inline std::vector<pcl::registration::CorrespondenceLookupTableCell>&
+        inline std::vector<pcl::registration::CorrespondenceLookupTableCell<DistanceT> >&
         getLookupTable () { return (lookup_table_); }
 
         /** \brief Get the search tree. */
@@ -186,6 +194,16 @@ namespace pcl
         /** \brief Check if the distance between query and closest point will be computed. */
         inline bool
         getComputeDistanceFromQueryPointToClosestPoint () { return (compute_distance_from_query_point_to_closest_point_); }
+
+        /** \brief Set the lookup table initialization algorithm.
+          * \param[in] initialize_lookup_table_using_euclidean_distance_transform True for using the Euclidean Distance Transform (much faster). False for using a k-d tree (more accurate).
+          */
+        inline void
+        setInitializeLookupTableUsingEuclideanDistanceTransform (bool initialize_lookup_table_using_euclidean_distance_transform) { initialize_lookup_table_using_euclidean_distance_transform_ = initialize_lookup_table_using_euclidean_distance_transform; }
+
+        /** \brief Get the lookup table initialization method (true if using the Euclidean Distance Transform or false if relying on a k-d tree). */
+        inline bool
+        getInitializeLookupTableUsingEuclideanDistanceTransform () { return (initialize_lookup_table_using_euclidean_distance_transform_); }
 
         /** \brief Gets the number of queries performed on the lookup table. */
         inline size_t
@@ -220,6 +238,22 @@ namespace pcl
         initLookupTable (typename pcl::search::Search<PointT>::ConstPtr tree);
 
         /**
+          * \brief Initialize the lookup table using the Euclidean Distance Transform algorithm.
+          *
+          * \note Implementation based on the algorithm introduced in:
+          * A. Meijster, J. B. T. M. Roerdink and W. H. Hesselink, A general algorithm for computing distance transforms in linear time.
+          * In: Mathematical Morphology and its Applications to Image and Signal Processing, Kluwer Acad. Publ., 2000, pp. 331-340.
+          *
+          * @param[in] pointcloud Point cloud with the data.
+          * @param[out] discarded_indices The distance transform uses the voxel centroids when computing distances.
+          *   This means that if several reference points fall within the same voxel, only the point closest to the voxel centroid will be kept.
+          *   If discarded_indices != null, then it will be retrieved which point indices were discarded (because there was another point within the same voxel and closest to the centroid).
+          * @return True if the lookup table was initialized successfully.
+          */
+        virtual bool
+        initLookupTableUsingEuclideanDistanceTransform (typename pcl::PointCloud<PointT>::ConstPtr pointcloud, pcl::IndicesPtr discarded_indices);
+
+        /**
          * Gets the correspondence cell index associated with the query_point.
          * @param[in] query_point Coordinates of the query point.
          * @param[out] correspondence_index The computed index of the lookup table cell.
@@ -233,8 +267,13 @@ namespace pcl
          * Computes the correspondence cell centroid from the lookup table cell index components (retrieved with @see computeCorrespondenceCellIndex).
          * @return The centroid of the correspondence cell.
          */
-        Eigen::Vector3f
-        computeCorrespondenceCellCentroid (const Eigen::Vector3i& correspondence_index_components);
+        inline Eigen::Vector3f
+        computeCorrespondenceCellCentroid (const Eigen::Vector3i& correspondence_index_components)
+        {
+          return (Eigen::Vector3f (minimum_bounds_ (0) + (correspondence_index_components (0) * cell_resolution_),
+                                   minimum_bounds_ (1) + (correspondence_index_components (1) * cell_resolution_),
+                                   minimum_bounds_ (2) + (correspondence_index_components (2) * cell_resolution_)));
+        }
 
         /**
          * Computes the squared distance between two points.
@@ -242,7 +281,7 @@ namespace pcl
          * @param b Second point.
          * @return The Euclidean squared distance between the two points.
          */
-        float
+        inline float
         computeSquaredDistance (const Eigen::Vector3f& a, const Eigen::Vector3f& b)
         {
           return ((a - b).squaredNorm ());
@@ -254,7 +293,7 @@ namespace pcl
          * @param b Second point.
          * @return The Euclidean squared distance between the two points.
          */
-        float
+        inline float
         computeSquaredDistance (const PointT& a, const PointT& b)
         {
           float dx = a.x - b.x;
@@ -269,7 +308,7 @@ namespace pcl
          * @param centroid Cell centroid.
          * @return The Euclidean squared distance between the two points.
          */
-        float
+        inline float
         computeSquaredDistanceToCentroid (const PointT& query_point, Eigen::Vector3f centroid)
         {
           float dx = query_point.x - centroid (0);
@@ -284,7 +323,7 @@ namespace pcl
          * @param[out] point Point retrieved.
          * @return True if the index was valid and the point was retrieved.
          */
-        bool
+        inline bool
         getCellPoint (size_t index, PointT& point)
         {
           if (pointcloud_ && index < pointcloud_->size ())
@@ -304,14 +343,14 @@ namespace pcl
          * @return True if it was found a valid correspondence.
          */
         bool
-        getCorrespondence (const PointT& query_point, double maximum_correspondence_distance_squared, pcl::registration::CorrespondenceLookupTableCell& correspondance);
+        getCorrespondence (const PointT& query_point, double maximum_correspondence_distance_squared, pcl::registration::CorrespondenceLookupTableCell<DistanceT>& correspondance);
 
         /**
          * Gets the pre-computed correspondence using a valid index computed with @see computeCorrespondenceCellIndex.
          * @param correspondence_index The index of the lookup table cell.
          * @return Reference to the correspondence on the provided index.
          */
-        pcl::registration::CorrespondenceLookupTableCell&
+        inline pcl::registration::CorrespondenceLookupTableCell<DistanceT>&
         getCorrespondence (size_t correspondence_index)
         {
           return (lookup_table_[correspondence_index]);
@@ -324,15 +363,72 @@ namespace pcl
          * @param z z-axis cell coordinate
          * @return Reference to the correspondence.
          */
-        pcl::registration::CorrespondenceLookupTableCell&
+        inline pcl::registration::CorrespondenceLookupTableCell<DistanceT>&
         getCorrespondence (size_t x, size_t y, size_t z)
         {
           return (lookup_table_[x + y * number_cells_x_ + z * number_cells_xy_slice_]);
         }
 
       protected:
+        /**
+         * \brief Adds points to the lookup table. If several points fall within the same voxel, only the one closest to the voxel centroid will be kept.
+         * @param[in] pointcloud Point cloud with the data.
+         * @param[out] discarded_indices If discarded_indices != null, then it will be retrieved which point indices were discarded (because there was another point within the same voxel and closest to the centroid).
+         */
+        void
+        addPointsToLookupTable (const pcl::PointCloud<PointT>& pointcloud, pcl::IndicesPtr discarded_indices);
+
+        /** \brief Computes the first phase of the Meijster Euclidean distance transform algorithm on the data x axis */
+        void
+        computeFirstPhaseMeijsterAxisX ();
+
+        /** \brief Computes the second phase of the Meijster Euclidean distance transform algorithm on the data y axis */
+        void
+        computeSecondPhaseMeijsterAxisY ();
+
+        /** \brief Computes the second phase of the Meijster Euclidean distance transform algorithm on the data z axis */
+        void
+        computeSecondPhaseMeijsterAxisZ ();
+
+        /** \brief Updates the distance within each lookup table cell to take in consideration the cell resolution.
+         *
+         * The Meijster algorithm assumes that the distance between two adjacent cells is one unit.
+         * This method scales the distance results of the Meijster algorithm in order to have distance_between_adjacent_cells = cell_resolution. */
+        void
+        updateCellDistancesWithCellResolution ();
+
+        /**
+         * Computes Meijster squared Euclidean distance metric.
+         * @param x Current x cell index.
+         * @param i Index of the closest interest cell (in a given axis).
+         * @param gi_squared Distance squared to the closest interest cell stored in the i cell.
+         * @return Squared Euclidean distance.
+         */
+        inline float
+        computeMeijsterSquaredEDT (size_t x, size_t i, DistanceT gi_squared)
+        {
+          int xi = (x - i);
+          return (xi * xi + gi_squared);
+        }
+
+        /**
+         * Computes the Meijster separator index (Sep) corresponding to the iu parabola intersection.
+         * @param i Index of the closest interest cell (in a given axis).
+         * @param u Upper bound of i index.
+         * @param gi_squared Distance to the closest interest cell stored in the i cell.
+         * @param gu_squared Distance to the closest interest cell stored in the u cell.
+         * @return Meijster Sep value.
+         */
+        inline size_t
+        computeMeijsterParabolaIntersectionIndex (size_t i, size_t u, DistanceT gi_squared, DistanceT gu_squared)
+        {
+          // (x - i)^2 + (gi)^2 <= (x - u)^2 + (gu)^2
+          // x <= (u^2 - i^2 + (gu)^2 - (gi)^2) / (2(u-i))
+          return ((u * u - i * i + gu_squared - gi_squared) / (2 * (u - i)));
+        }
+
         /** \brief 3 Dimensional array containing the pre-computed correspondences. */
-        std::vector<pcl::registration::CorrespondenceLookupTableCell> lookup_table_;
+        std::vector<pcl::registration::CorrespondenceLookupTableCell<DistanceT> > lookup_table_;
 
         /** \brief Search tree associated with the lookup table. */
         typename pcl::search::Search<PointT>::ConstPtr search_tree_;
@@ -374,6 +470,9 @@ namespace pcl
          * If it is required accurate distance estimation, this flag should be set to true for computing the distance between each query point and its correspondence. */
         bool compute_distance_from_query_point_to_closest_point_;
 
+        /** \brief If true it will be used the Euclidean Distance Transform for initializing the lookup table. Otherwise it will be used a k-d tree. */
+        bool initialize_lookup_table_using_euclidean_distance_transform_;
+
         /** \brief Number of queries performed on the lookup table. */
         size_t number_of_queries_on_lookup_table_;
 
@@ -387,12 +486,12 @@ namespace pcl
       * \author Carlos M. Costa
       * \ingroup registration
       */
-    template <typename PointSource, typename PointTarget, typename Scalar = float>
+    template <typename PointSource, typename PointTarget, typename Scalar = float, typename DistanceT = double>
     class CorrespondenceEstimationLookupTable: public CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>
     {
       public:
-        typedef boost::shared_ptr<CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar> > Ptr;
-        typedef boost::shared_ptr<const CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar> > ConstPtr;
+        typedef boost::shared_ptr<CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar, DistanceT> > Ptr;
+        typedef boost::shared_ptr<const CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar, DistanceT> > ConstPtr;
 
         using CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::corr_name_;
         using CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::force_no_recompute_;
@@ -432,11 +531,11 @@ namespace pcl
         virtual ~CorrespondenceEstimationLookupTable () {}
 
         /** \brief Get the source lookup table. */
-        inline CorrespondenceLookupTable<PointSource>&
+        inline CorrespondenceLookupTable<PointSource, DistanceT>&
         getSourceCorrespondencesLookupTable () { return (source_correspondences_lookup_table_); }
 
         /** \brief Get the target lookup table. */
-        inline CorrespondenceLookupTable<PointTarget>&
+        inline CorrespondenceLookupTable<PointTarget, DistanceT>&
         getTargetCorrespondencesLookupTable () { return (target_correspondences_lookup_table_); }
 
         /** \brief Internal computation initialization. */
@@ -498,16 +597,16 @@ namespace pcl
         virtual boost::shared_ptr< CorrespondenceEstimationBase<PointSource, PointTarget, Scalar> >
         clone () const
         {
-          Ptr copy (new CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar> (*this));
+          Ptr copy (new CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar, DistanceT> (*this));
           return (copy);
         }
 
       protected:
         /** \brief LookupTable containing the pre-computed source correspondences */
-        CorrespondenceLookupTable<PointSource> source_correspondences_lookup_table_;
+        CorrespondenceLookupTable<PointSource, DistanceT> source_correspondences_lookup_table_;
 
         /** \brief LookupTable containing the pre-computed target correspondences */
-        CorrespondenceLookupTable<PointTarget> target_correspondences_lookup_table_;
+        CorrespondenceLookupTable<PointTarget, DistanceT> target_correspondences_lookup_table_;
      };
   }
 }
