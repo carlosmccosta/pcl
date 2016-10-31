@@ -230,6 +230,19 @@ namespace pcl
         computeLookupTableBounds (const pcl::PointCloud<PointT>& pointcloud);
 
         /**
+          * \brief Initialize the lookup table using the provided point cloud.
+          * @param[in] pointcloud Point cloud with the data.
+          * @return True if the lookup table was initialized successfully.
+          */
+        virtual bool
+        initLookupTable (typename pcl::PointCloud<PointT>::ConstPtr pointcloud)
+        {
+          typename pcl::search::KdTree<PointT>::Ptr search_tree (new pcl::search::KdTree<PointT> ());
+          search_tree->setInputCloud (pointcloud);
+          return initLookupTable (search_tree);
+        }
+
+        /**
           * \brief Initialize the lookup table using the provided tree.
           * @param[in] tree Search tree with the point data.
           * @return True if the lookup table was initialized successfully.

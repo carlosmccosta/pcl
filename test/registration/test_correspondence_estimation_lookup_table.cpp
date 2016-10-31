@@ -38,6 +38,7 @@
 */
 
 #include <gtest/gtest.h>
+#include <Eigen/Core>
 #include <pcl/point_types.h>
 #include <pcl/registration/correspondence_estimation_lookup_table.h>
 
@@ -45,25 +46,82 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 TEST (CorrespondenceLookupTable, ComputeLookupTableBounds)
 {
-  ASSERT_TRUE (true);
-}
+  pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ> lut;
+  pcl::PointCloud<pcl::PointXYZ> pointcloud;
+  ASSERT_FALSE (lut.computeLookupTableBounds(pointcloud));
+  pointcloud.push_back (pcl::PointXYZ (0,0,0));
+  pointcloud.push_back (pcl::PointXYZ (-1,2,-3));
+  pointcloud.push_back (pcl::PointXYZ (4,-5,6));
+  pointcloud.push_back (pcl::PointXYZ (-7,8,9));
+  ASSERT_TRUE (lut.computeLookupTableBounds (pointcloud));
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-TEST (CorrespondenceLookupTable, InitLookupTable)
-{
-  ASSERT_TRUE (true);
-}
+  Eigen::Vector3f margin = lut.getLookupTableMargin ();
+  Eigen::Vector3f min_bounds = lut.getMinimumBounds ();
+  Eigen::Vector3f max_bounds = lut.getMaximumBounds ();
+  float half_cell_resolution = lut.getCellResolution () * 0.5;
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-TEST (CorrespondenceLookupTable, InitLookupTableUsingEuclideanDistanceTransform)
-{
-  ASSERT_TRUE (true);
+  EXPECT_FLOAT_EQ ((float)(-7.0 - margin (0) - half_cell_resolution), (float)min_bounds (0));
+  EXPECT_FLOAT_EQ ((float)(-5.0 - margin (1) - half_cell_resolution), (float)min_bounds (1));
+  EXPECT_FLOAT_EQ ((float)(-3.0 - margin (2) - half_cell_resolution), (float)min_bounds (2));
+  EXPECT_FLOAT_EQ ((float)( 4.0 + margin (0) + half_cell_resolution), (float)max_bounds (0));
+  EXPECT_FLOAT_EQ ((float)( 8.0 + margin (1) + half_cell_resolution), (float)max_bounds (1));
+  EXPECT_FLOAT_EQ ((float)( 9.0 + margin (2) + half_cell_resolution), (float)max_bounds (2));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 TEST (CorrespondenceLookupTable, ComputeCorrespondenceCellIndex)
 {
-  ASSERT_TRUE (true);
+  pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ> lut;
+  lut.setCellResolution (1.0);
+  lut.setLookupTableMargin (Eigen::Vector3f (0,0,0));
+  lut.setUseSearchTreeWhenQueryPointIsOutsideLookupTable(false);
+  typename pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud (new pcl::PointCloud<pcl::PointXYZ> ());
+  pointcloud->push_back (pcl::PointXYZ (0,0,0));
+  pointcloud->push_back (pcl::PointXYZ (2,3,4));
+  ASSERT_TRUE (lut.initLookupTable (pointcloud));
+
+  size_t correspondence_index;
+  Eigen::Vector3i correspondence_index_components;
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ (-1,-1,-1), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ (-1, 0,-1), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ (-1, 4,-1), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ (-1,-1, 0), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ (-1, 0, 0), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ (-1, 4, 0), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ (-1,-1, 5), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ (-1, 0, 5), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ (-1, 4, 5), correspondence_index, correspondence_index_components));
+
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 0,-1,-1), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 0, 0,-1), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 0, 4,-1), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 0,-1, 0), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 0, 4, 0), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 0,-1, 5), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 0, 0, 5), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 0, 4, 5), correspondence_index, correspondence_index_components));
+
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 3,-1,-1), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 3, 0,-1), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 3, 4,-1), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 3,-1, 0), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 3, 0, 0), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 3, 4, 0), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 3,-1, 5), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 3, 0, 5), correspondence_index, correspondence_index_components));
+  EXPECT_FALSE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ ( 3, 4, 5), correspondence_index, correspondence_index_components));
+
+  EXPECT_TRUE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ (0,0,0), correspondence_index, correspondence_index_components));
+  EXPECT_EQ (0, correspondence_index);
+  EXPECT_EQ (Eigen::Vector3i (0,0,0), correspondence_index_components);
+
+  EXPECT_TRUE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ (1,1,1), correspondence_index, correspondence_index_components));
+  EXPECT_EQ (1+3+3*4, correspondence_index);
+  EXPECT_EQ (Eigen::Vector3i (1,1,1), correspondence_index_components);
+
+  EXPECT_TRUE (lut.computeCorrespondenceCellIndex (pcl::PointXYZ (2,3,4), correspondence_index, correspondence_index_components));
+  EXPECT_EQ (2+3*3+4*3*4, correspondence_index);
+  EXPECT_EQ (Eigen::Vector3i (2,3,4), correspondence_index_components);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -80,6 +138,18 @@ TEST (CorrespondenceLookupTable, GetCorrespondence)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 TEST (CorrespondenceLookupTable, AddPointsToLookupTable)
+{
+  ASSERT_TRUE (true);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+TEST (CorrespondenceLookupTable, InitLookupTable)
+{
+  ASSERT_TRUE (true);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+TEST (CorrespondenceLookupTable, InitLookupTableUsingEuclideanDistanceTransform)
 {
   ASSERT_TRUE (true);
 }
