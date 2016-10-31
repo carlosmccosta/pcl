@@ -111,6 +111,7 @@ namespace pcl
         /** \brief Empty constructor. */
         CorrespondenceLookupTable ()
           : cell_resolution_ (0.01)
+          , cell_resolution_half_ (0.005)
           , cell_resolution_inverse_ (100.0)
           , lookup_table_margin_ (1.0, 1.0, 1.0)
           , number_cells_x_ (0)
@@ -130,7 +131,11 @@ namespace pcl
           * \param[in] cell_resolution is the lookup table cell size.
           */
         inline void
-        setCellResolution (float cell_resolution) { cell_resolution_ = cell_resolution; cell_resolution_inverse_ = 1.0 / cell_resolution_; }
+        setCellResolution (float cell_resolution) {
+          cell_resolution_ = cell_resolution;
+          cell_resolution_half_ = cell_resolution_ * 0.5;
+          cell_resolution_inverse_ = 1.0 / cell_resolution_;
+        }
 
         /** \brief Get the lookup table cell size. */
         inline float
@@ -283,9 +288,9 @@ namespace pcl
         inline Eigen::Vector3f
         computeCorrespondenceCellCentroid (const Eigen::Vector3i& correspondence_index_components)
         {
-          return (Eigen::Vector3f (minimum_bounds_ (0) + (correspondence_index_components (0) * cell_resolution_),
-                                   minimum_bounds_ (1) + (correspondence_index_components (1) * cell_resolution_),
-                                   minimum_bounds_ (2) + (correspondence_index_components (2) * cell_resolution_)));
+          return (Eigen::Vector3f (minimum_bounds_ (0) + cell_resolution_half_ + (correspondence_index_components (0) * cell_resolution_),
+                                   minimum_bounds_ (1) + cell_resolution_half_ + (correspondence_index_components (1) * cell_resolution_),
+                                   minimum_bounds_ (2) + cell_resolution_half_ + (correspondence_index_components (2) * cell_resolution_)));
         }
 
         /**
@@ -451,6 +456,9 @@ namespace pcl
 
         /** \brief Resolution of the lookup table. */
         float cell_resolution_;
+
+        /** \brief Half the cell resolution of the lookup table. */
+        float cell_resolution_half_;
 
         /** \brief Inverse of the resolution of the lookup table. */
         float cell_resolution_inverse_;

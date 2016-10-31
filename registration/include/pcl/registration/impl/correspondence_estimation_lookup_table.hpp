@@ -52,11 +52,11 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeLookupTa
   Eigen::Vector4f min_pt;
   Eigen::Vector4f max_pt;
   pcl::getMinMax3D (pointcloud, min_pt, max_pt);
-  float half_cell_resolution = cell_resolution_ * 0.5;
   for (size_t i = 0; i < 3; ++i)
   {
-    minimum_bounds_ (i) = min_pt (i) - (lookup_table_margin_ (i) + half_cell_resolution);
-    maximum_bounds_ (i) = max_pt (i) + (lookup_table_margin_ (i) + half_cell_resolution);
+    float offset = lookup_table_margin_ (i) + cell_resolution_half_;
+    minimum_bounds_ (i) = min_pt (i) - offset;
+    maximum_bounds_ (i) = max_pt (i) + offset;
   }
 
   number_cells_x_ = std::max ((size_t)(std::ceil ((float)((maximum_bounds_ (0) - minimum_bounds_ (0)) * cell_resolution_inverse_))), (size_t)1);
@@ -77,9 +77,9 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::initLookupTable
     if (initLookupTableUsingEuclideanDistanceTransform (tree->getInputCloud (), pcl::IndicesPtr ()))
     {
       search_tree_ = tree;
-      return true;
+      return (true);
     }
-    return false;
+    return (false);
   }
 
   if (!computeLookupTableBounds (*(tree->getInputCloud ())))
@@ -94,16 +94,15 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::initLookupTable
   std::vector<int> index (1);
   std::vector<float> distance (1);
   int correspondence_number = 0;
-  float half_cell_resolution = cell_resolution_ * 0.5;
   PointT query_point;
-  query_point.z = minimum_bounds_(2) + half_cell_resolution;
+  query_point.z = minimum_bounds_(2) + cell_resolution_half_;
 
   for (size_t z = 0; z < number_cells_z_; ++z)
   {
-    query_point.y = minimum_bounds_(1) + half_cell_resolution;
+    query_point.y = minimum_bounds_(1) + cell_resolution_half_;
     for (size_t y = 0; y < number_cells_y_; ++y)
     {
-      query_point.x = minimum_bounds_(0) + half_cell_resolution;
+      query_point.x = minimum_bounds_(0) + cell_resolution_half_;
       for (size_t x = 0; x < number_cells_x_; ++x)
       {
         search_tree_->nearestKSearch (query_point, 1, index, distance);
