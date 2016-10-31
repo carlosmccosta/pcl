@@ -16,6 +16,10 @@ PCL_ADD_TEST(correspondence_estimation test_correspondence_estimation
              FILES test_correspondence_estimation.cpp
              LINK_WITH pcl_gtest pcl_io pcl_registration pcl_features)
 
+PCL_ADD_TEST(correspondence_estimation_lookup_table test_correspondence_estimation_lookup_table
+             FILES test_correspondence_estimation_lookup_table.cpp
+             LINK_WITH pcl_gtest pcl_registration)
+
 PCL_ADD_TEST(correspondence_rejectors test_correspondence_rejectors
              FILES test_correspondence_rejectors.cpp
              LINK_WITH pcl_gtest pcl_io pcl_registration pcl_features
