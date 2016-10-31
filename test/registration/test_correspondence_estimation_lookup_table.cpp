@@ -46,13 +46,13 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 TEST (CorrespondenceLookupTable, ComputeLookupTableBounds)
 {
-  pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ> lut;
+  pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ, float> lut;
   pcl::PointCloud<pcl::PointXYZ> pointcloud;
   ASSERT_FALSE (lut.computeLookupTableBounds(pointcloud));
-  pointcloud.push_back (pcl::PointXYZ (0,0,0));
-  pointcloud.push_back (pcl::PointXYZ (-1,2,-3));
-  pointcloud.push_back (pcl::PointXYZ (4,-5,6));
-  pointcloud.push_back (pcl::PointXYZ (-7,8,9));
+  pointcloud.push_back (pcl::PointXYZ ( 0, 0, 0));
+  pointcloud.push_back (pcl::PointXYZ (-1, 2,-3));
+  pointcloud.push_back (pcl::PointXYZ ( 4,-5, 6));
+  pointcloud.push_back (pcl::PointXYZ (-7, 8, 9));
   ASSERT_TRUE (lut.computeLookupTableBounds (pointcloud));
 
   Eigen::Vector3f margin = lut.getLookupTableMargin ();
@@ -71,10 +71,10 @@ TEST (CorrespondenceLookupTable, ComputeLookupTableBounds)
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 TEST (CorrespondenceLookupTable, ComputeCorrespondenceCellIndex)
 {
-  pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ> lut;
+  pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ, float> lut;
   lut.setCellResolution (1.0);
   lut.setLookupTableMargin (Eigen::Vector3f (0,0,0));
-  lut.setUseSearchTreeWhenQueryPointIsOutsideLookupTable(false);
+  lut.setUseSearchTreeWhenQueryPointIsOutsideLookupTable (false);
   typename pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud (new pcl::PointCloud<pcl::PointXYZ> ());
   pointcloud->push_back (pcl::PointXYZ (0,0,0));
   pointcloud->push_back (pcl::PointXYZ (2,3,4));
@@ -127,13 +127,73 @@ TEST (CorrespondenceLookupTable, ComputeCorrespondenceCellIndex)
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 TEST (CorrespondenceLookupTable, ComputeCorrespondenceCellCentroid)
 {
-  ASSERT_TRUE (true);
+  pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ, float> lut;
+  lut.setCellResolution (1.0);
+  lut.setLookupTableMargin (Eigen::Vector3f (0,0,0));
+  typename pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud (new pcl::PointCloud<pcl::PointXYZ> ());
+  pointcloud->push_back (pcl::PointXYZ (0,0,0));
+  pointcloud->push_back (pcl::PointXYZ (2,3,4));
+  ASSERT_TRUE (lut.initLookupTable (pointcloud));
+
+  Eigen::Vector3f centroid = lut.computeCorrespondenceCellCentroid (Eigen::Vector3i (0,0,0));
+  EXPECT_FLOAT_EQ (0, (float)centroid (0));
+  EXPECT_FLOAT_EQ (0, (float)centroid (1));
+  EXPECT_FLOAT_EQ (0, (float)centroid (2));
+
+  centroid = lut.computeCorrespondenceCellCentroid (Eigen::Vector3i (1,0,0));
+  EXPECT_FLOAT_EQ (1, (float)centroid (0));
+  EXPECT_FLOAT_EQ (0, (float)centroid (1));
+  EXPECT_FLOAT_EQ (0, (float)centroid (2));
+
+  centroid = lut.computeCorrespondenceCellCentroid (Eigen::Vector3i (0,1,0));
+  EXPECT_FLOAT_EQ (0, (float)centroid (0));
+  EXPECT_FLOAT_EQ (1, (float)centroid (1));
+  EXPECT_FLOAT_EQ (0, (float)centroid (2));
+
+  centroid = lut.computeCorrespondenceCellCentroid (Eigen::Vector3i (0,0,1));
+  EXPECT_FLOAT_EQ (0, (float)centroid (0));
+  EXPECT_FLOAT_EQ (0, (float)centroid (1));
+  EXPECT_FLOAT_EQ (1, (float)centroid (2));
+
+  centroid = lut.computeCorrespondenceCellCentroid (Eigen::Vector3i (1,2,3));
+  EXPECT_FLOAT_EQ (1, (float)centroid (0));
+  EXPECT_FLOAT_EQ (2, (float)centroid (1));
+  EXPECT_FLOAT_EQ (3, (float)centroid (2));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 TEST (CorrespondenceLookupTable, GetCorrespondence)
 {
-  ASSERT_TRUE (true);
+  pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ, float> lut;
+  lut.setCellResolution (1.0);
+  lut.setComputeDistanceFromQueryPointToClosestPoint (false);
+  lut.setLookupTableMargin (Eigen::Vector3f (0,0,0));
+  lut.setUseSearchTreeWhenQueryPointIsOutsideLookupTable (false);
+  typename pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud (new pcl::PointCloud<pcl::PointXYZ> ());
+  pointcloud->push_back (pcl::PointXYZ (0,0,0));
+  pointcloud->push_back (pcl::PointXYZ (2,3,4));
+  ASSERT_TRUE (lut.initLookupTable (pointcloud));
+
+  pcl::registration::CorrespondenceLookupTableCell<float> correspondance;
+  EXPECT_FALSE (lut.getCorrespondence (pcl::PointXYZ (-1, 0, 0), 4, correspondance));
+  EXPECT_FALSE (lut.getCorrespondence (pcl::PointXYZ ( 0,-1, 0), 4, correspondance));
+  EXPECT_FALSE (lut.getCorrespondence (pcl::PointXYZ ( 0, 0,-1), 4, correspondance));
+
+  lut.setUseSearchTreeWhenQueryPointIsOutsideLookupTable (true);
+  EXPECT_FALSE (lut.getCorrespondence (pcl::PointXYZ (-1, 0, 0), 0.99, correspondance));
+
+  EXPECT_TRUE (lut.getCorrespondence (pcl::PointXYZ (-1, -2, -3), 14, correspondance));
+  EXPECT_FLOAT_EQ (14, correspondance.distance_squared_to_closest_point);
+  EXPECT_FLOAT_EQ (0, correspondance.closest_point_index);
+
+  EXPECT_TRUE (lut.getCorrespondence (pcl::PointXYZ (2.1, 3.1, 4.1), 2, correspondance));
+  EXPECT_FALSE(correspondance.distance_squared_to_closest_point != 0);
+  EXPECT_FLOAT_EQ (1, correspondance.closest_point_index);
+
+  lut.setComputeDistanceFromQueryPointToClosestPoint (true);
+  EXPECT_TRUE (lut.getCorrespondence (pcl::PointXYZ (2, 3, 4), 2, correspondance));
+  EXPECT_FLOAT_EQ (0, correspondance.distance_squared_to_closest_point);
+  EXPECT_FLOAT_EQ (1, correspondance.closest_point_index);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
