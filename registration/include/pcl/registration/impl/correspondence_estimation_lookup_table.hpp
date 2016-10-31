@@ -194,18 +194,23 @@ void
 pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeFirstPhaseMeijsterAxisX ()
 {
   int number_cells_y_int = (int)number_cells_y_;
+  size_t maximum_distance = number_cells_x_ + number_cells_y_ + number_cells_z_;
   for (size_t z = 0; z < number_cells_z_; ++z)
   {
-    #pragma omp parallel for
+    #pragma omp parallel for default(shared)
     for (int y = 0; y < number_cells_y_int; ++y) // OpenMP supports size_t index only after version 3.0.
     {
       // Forward scan computes the integer distances to the closest interest cells (after they are found).
       size_t cell_index = 1 + (size_t)y * number_cells_x_ + z * number_cells_xy_slice_;
+      pcl::registration::CorrespondenceLookupTableCell<DistanceT>& first_cell = getCorrespondence (cell_index - 1);
+      if (first_cell.distance_squared_to_closest_point != 0.0)
+        first_cell.distance_squared_to_closest_point = maximum_distance;
+
       for (size_t x = 1; x < number_cells_x_; ++x)
       {
         pcl::registration::CorrespondenceLookupTableCell<DistanceT>& previous_cell = getCorrespondence (cell_index - 1);
         pcl::registration::CorrespondenceLookupTableCell<DistanceT>& current_cell = getCorrespondence (cell_index++);
-        if (previous_cell.distance_squared_to_closest_point >= 0)
+        if (current_cell.distance_squared_to_closest_point != 0)
         {
           current_cell.closest_point_index = previous_cell.closest_point_index;
           current_cell.distance_squared_to_closest_point = previous_cell.distance_squared_to_closest_point + 1;
@@ -218,7 +223,7 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeFirstPha
       {
         pcl::registration::CorrespondenceLookupTableCell<DistanceT>& current_cell = getCorrespondence (cell_index);
         pcl::registration::CorrespondenceLookupTableCell<DistanceT>& next_cell = getCorrespondence (cell_index-- + 1);
-        if (current_cell.closest_point_index < 0 || next_cell.distance_squared_to_closest_point < current_cell.distance_squared_to_closest_point)
+        if (next_cell.distance_squared_to_closest_point < current_cell.distance_squared_to_closest_point)
         {
           current_cell.closest_point_index = next_cell.closest_point_index;
           current_cell.distance_squared_to_closest_point = next_cell.distance_squared_to_closest_point + 1;
@@ -236,14 +241,14 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeSecondPh
   int number_cells_x_int = (int)number_cells_x_;
   for (size_t z = 0; z < number_cells_z_; ++z)
   {
-    #pragma omp parallel for
+    #pragma omp parallel for default(shared)
     for (int x = 0; x < number_cells_x_int; ++x) // OpenMP supports size_t index only after version 3.0.
     {
       // Forward scan computes the lower envelop segments.
       size_t cell_base_index = x + z * number_cells_xy_slice_;
       std::vector <size_t> y_index_where_closest_interest_cell_was_found (number_cells_y_, 0); // s
       std::vector <size_t> y_index_of_intersection_with_previous_parabola (number_cells_y_, 0); // t
-      size_t last_segment_index = 0; // q
+      int last_segment_index = 0; // q
       DistanceT last_segment_index_distance_squared_to_closest_point = std::pow (getCorrespondence (cell_base_index).distance_squared_to_closest_point, 2);
 
       for (size_t y = 1; y < number_cells_y_; ++y)
@@ -261,7 +266,8 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeSecondPh
           // Fy either intersects or is below the current lower envelop.
           // The current segments will either shrink or disappear.
           --last_segment_index;
-          last_segment_index_distance_squared_to_closest_point = std::pow (getCorrespondence (cell_base_index + y_index_where_closest_interest_cell_was_found[last_segment_index] * number_cells_x_).distance_squared_to_closest_point, 2);
+          if (last_segment_index >= 0)
+            last_segment_index_distance_squared_to_closest_point = std::pow (getCorrespondence (cell_base_index + y_index_where_closest_interest_cell_was_found[last_segment_index] * number_cells_x_).distance_squared_to_closest_point, 2);
         }
 
         if (last_segment_index < 0)
@@ -297,10 +303,12 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeSecondPh
       {
         pcl::registration::CorrespondenceLookupTableCell<DistanceT>& current_cell = getCorrespondence (cell_base_index + y * number_cells_x_);
         current_cell.distance_squared_to_closest_point = computeMeijsterSquaredEDT (y, y_index_where_closest_interest_cell_was_found[last_segment_index], last_segment_index_distance_squared_to_closest_point);
+        current_cell.closest_point_index = getCorrespondence (cell_base_index + y_index_where_closest_interest_cell_was_found[last_segment_index] * number_cells_x_).closest_point_index;
         if (y == (int)y_index_of_intersection_with_previous_parabola[last_segment_index])
         {
           --last_segment_index;
-          last_segment_index_distance_squared_to_closest_point = std::pow (getCorrespondence (cell_base_index + y_index_where_closest_interest_cell_was_found[last_segment_index] * number_cells_x_).distance_squared_to_closest_point, 2);
+          if (last_segment_index >= 0)
+            last_segment_index_distance_squared_to_closest_point = std::pow (getCorrespondence (cell_base_index + y_index_where_closest_interest_cell_was_found[last_segment_index] * number_cells_x_).distance_squared_to_closest_point, 2);
         }
       }
     }
@@ -312,6 +320,9 @@ template <typename PointT, typename DistanceT>
 void
 pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeSecondPhaseMeijsterAxisZ ()
 {
+  if (number_cells_z_ == 1)
+    return;
+
   // todo: finish second phase of Meijster in the Z axis
 }
 
@@ -324,7 +335,7 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::updateCellDista
   float cell_resolution_squared = cell_resolution_ * cell_resolution_;
   for (size_t z = 0; z < number_cells_z_; ++z)
   {
-    #pragma omp parallel for
+    #pragma omp parallel for default(shared)
     for (int y = 0; y < number_cells_y_int; ++y) // OpenMP supports size_t index only after version 3.0.
     {
       size_t cell_index = (size_t)y * number_cells_x_ + z * number_cells_xy_slice_;
