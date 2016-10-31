@@ -17,6 +17,10 @@ if (build)
                FILES test_correspondence_estimation.cpp
                LINK_WITH pcl_gtest pcl_registration pcl_features)
 
+  PCL_ADD_TEST(correspondence_estimation_lookup_table test_correspondence_estimation_lookup_table
+             FILES test_correspondence_estimation_lookup_table.cpp
+             LINK_WITH pcl_gtest pcl_registration)
+
   if (BUILD_io)
     PCL_ADD_TEST(a_registration_test test_registration
                  FILES test_registration.cpp
