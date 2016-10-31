@@ -59,9 +59,9 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeLookupTa
     maximum_bounds_ (i) = max_pt (i) + (lookup_table_margin_ (i) + half_cell_resolution);
   }
 
-  number_cells_x_ = std::max ((size_t)(std::ceil ((maximum_bounds_ (0) - minimum_bounds_ (0)) * cell_resolution_inverse_)), (size_t)1);
-  number_cells_y_ = std::max ((size_t)(std::ceil ((maximum_bounds_ (1) - minimum_bounds_ (1)) * cell_resolution_inverse_)), (size_t)1);
-  number_cells_z_ = std::max ((size_t)(std::ceil ((maximum_bounds_ (2) - minimum_bounds_ (2)) * cell_resolution_inverse_)), (size_t)1);
+  number_cells_x_ = std::max ((size_t)(std::ceil ((float)((maximum_bounds_ (0) - minimum_bounds_ (0)) * cell_resolution_inverse_))), (size_t)1);
+  number_cells_y_ = std::max ((size_t)(std::ceil ((float)((maximum_bounds_ (1) - minimum_bounds_ (1)) * cell_resolution_inverse_))), (size_t)1);
+  number_cells_z_ = std::max ((size_t)(std::ceil ((float)((maximum_bounds_ (2) - minimum_bounds_ (2)) * cell_resolution_inverse_))), (size_t)1);
   number_cells_xy_slice_ = number_cells_x_ * number_cells_y_; // precompute the number of cells within each xy slice.
 
   return (true);
@@ -131,6 +131,14 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::initLookupTable
     return (false);
 
   pointcloud_ = pointcloud;
+
+  if (use_search_tree_when_query_point_is_outside_lookup_table_)
+  {
+    pcl::search::KdTree<PointT>* search_tree = new pcl::search::KdTree<PointT> ();
+    search_tree->setInputCloud (pointcloud_);
+    search_tree_ = typename pcl::search::Search<PointT>::ConstPtr (search_tree);
+  }
+
   size_t number_cells = number_cells_z_ * number_cells_y_ * number_cells_x_;
   lookup_table_.clear ();
   lookup_table_.resize (number_cells);
@@ -197,7 +205,7 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeFirstPha
   size_t maximum_distance = number_cells_x_ + number_cells_y_ + number_cells_z_;
   for (size_t z = 0; z < number_cells_z_; ++z)
   {
-    #pragma omp parallel for default(shared)
+//    #pragma omp parallel for default(shared)
     for (int y = 0; y < number_cells_y_int; ++y) // OpenMP supports size_t index only after version 3.0.
     {
       // Forward scan computes the integer distances to the closest interest cells (after they are found).
@@ -241,7 +249,7 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeSecondPh
   int number_cells_x_int = (int)number_cells_x_;
   for (size_t z = 0; z < number_cells_z_; ++z)
   {
-    #pragma omp parallel for default(shared)
+//    #pragma omp parallel for default(shared)
     for (int x = 0; x < number_cells_x_int; ++x) // OpenMP supports size_t index only after version 3.0.
     {
       // Forward scan computes the lower envelop segments.
@@ -335,7 +343,7 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::updateCellDista
   float cell_resolution_squared = cell_resolution_ * cell_resolution_;
   for (size_t z = 0; z < number_cells_z_; ++z)
   {
-    #pragma omp parallel for default(shared)
+//    #pragma omp parallel for default(shared)
     for (int y = 0; y < number_cells_y_int; ++y) // OpenMP supports size_t index only after version 3.0.
     {
       size_t cell_index = (size_t)y * number_cells_x_ + z * number_cells_xy_slice_;
@@ -352,19 +360,22 @@ template <typename PointT, typename DistanceT>
 bool
 pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeCorrespondenceCellIndex (const PointT& query_point, size_t& correspondence_index, Eigen::Vector3i& correspondence_index_components)
 {
+  if (query_point.x <= minimum_bounds_ (0) ||
+      query_point.x >= maximum_bounds_ (0) ||
+      query_point.y <= minimum_bounds_ (1) ||
+      query_point.y >= maximum_bounds_ (1) ||
+      query_point.z <= minimum_bounds_ (2) ||
+      query_point.z >= maximum_bounds_ (2))
+    return (false);
+
   correspondence_index_components (0) = (int)((query_point.x - minimum_bounds_ (0)) * cell_resolution_inverse_);
   correspondence_index_components (1) = (int)((query_point.y - minimum_bounds_ (1)) * cell_resolution_inverse_);
   correspondence_index_components (2) = (int)((query_point.z - minimum_bounds_ (2)) * cell_resolution_inverse_);
+  correspondence_index = correspondence_index_components (0) + correspondence_index_components (1) * number_cells_x_ + correspondence_index_components (2) * number_cells_xy_slice_;
 
-  size_t index = correspondence_index_components (0) + correspondence_index_components (1) * number_cells_x_ + correspondence_index_components (2) * number_cells_xy_slice_;
-  if (correspondence_index_components (0) >= 0 && (size_t)correspondence_index_components (0) < number_cells_x_ &&
-      correspondence_index_components (1) >= 0 && (size_t)correspondence_index_components (1) < number_cells_y_ &&
-      correspondence_index_components (2) >= 0 && (size_t)correspondence_index_components (2) < number_cells_z_ &&
-      index < lookup_table_.size())
-  {
-    correspondence_index = index;
+  if (correspondence_index < lookup_table_.size ())
     return (true);
-  }
+
   return (false);
 }
 
