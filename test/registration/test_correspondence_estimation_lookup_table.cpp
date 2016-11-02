@@ -42,7 +42,6 @@
 #include <pcl/point_types.h>
 #include <pcl/registration/correspondence_estimation_lookup_table.h>
 
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 TEST (CorrespondenceLookupTable, ComputeLookupTableBounds)
 {
@@ -196,34 +195,114 @@ TEST (CorrespondenceLookupTable, GetCorrespondence)
   EXPECT_FLOAT_EQ (1, correspondance.closest_point_index);
 }
 
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-TEST (CorrespondenceLookupTable, AddPointsToLookupTable)
+TEST (CorrespondenceLookupTable, InitLookupTable2D)
 {
-  ASSERT_TRUE (true);
+  pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ, double> lut_sequential_search;
+  lut_sequential_search.setCellResolution (1.0);
+  lut_sequential_search.setLookupTableMargin (Eigen::Vector3f (0,0,0));
+
+  pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ, double> lut_kdtree;
+  lut_kdtree.setCellResolution (1.0);
+  lut_kdtree.setLookupTableMargin (Eigen::Vector3f (0,0,0));
+
+  pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ, double> lut_distance_transform;
+  lut_distance_transform.setCellResolution (1.0);
+  lut_distance_transform.setLookupTableMargin (Eigen::Vector3f (0,0,0));
+
+  typename pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud (new pcl::PointCloud<pcl::PointXYZ> ());
+  pointcloud->push_back (pcl::PointXYZ (0,0,0));
+  pointcloud->push_back (pcl::PointXYZ (3,3,0));
+
+  ASSERT_TRUE (lut_sequential_search.initLookupTableUsingSequentialPointCloudSearch (pointcloud));
+  ASSERT_TRUE (lut_kdtree.initLookupTableUsingKDTree (pointcloud));
+  ASSERT_TRUE (lut_distance_transform.initLookupTableUsingEuclideanDistanceTransform (pointcloud));
+  EXPECT_TRUE (lut_sequential_search == lut_kdtree);
+  EXPECT_TRUE (lut_sequential_search == lut_distance_transform);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-TEST (CorrespondenceLookupTable, InitLookupTable)
+TEST (CorrespondenceEstimationLookupTable, DetermineCorrespondences2D)
 {
-  ASSERT_TRUE (true);
-}
+  typename pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud (new pcl::PointCloud<pcl::PointXYZ> ());
+  pointcloud->push_back (pcl::PointXYZ (0,0,0));
+  pointcloud->push_back (pcl::PointXYZ (3,3,0));
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-TEST (CorrespondenceLookupTable, InitLookupTableUsingEuclideanDistanceTransform)
-{
-  ASSERT_TRUE (true);
-}
+  typename pcl::PointCloud<pcl::PointXYZ>::Ptr query_pointcloud (new pcl::PointCloud<pcl::PointXYZ> ());
+  query_pointcloud->push_back (pcl::PointXYZ (0,0,0));
+  query_pointcloud->push_back (pcl::PointXYZ (1,0,0));
+  query_pointcloud->push_back (pcl::PointXYZ (2,0,0));
+  query_pointcloud->push_back (pcl::PointXYZ (3,0,0));
+  query_pointcloud->push_back (pcl::PointXYZ (0,1,0));
+  query_pointcloud->push_back (pcl::PointXYZ (1,1,0));
+  query_pointcloud->push_back (pcl::PointXYZ (2,1,0));
+  query_pointcloud->push_back (pcl::PointXYZ (3,1,0));
+  query_pointcloud->push_back (pcl::PointXYZ (0,2,0));
+  query_pointcloud->push_back (pcl::PointXYZ (1,2,0));
+  query_pointcloud->push_back (pcl::PointXYZ (2,2,0));
+  query_pointcloud->push_back (pcl::PointXYZ (3,2,0));
+  query_pointcloud->push_back (pcl::PointXYZ (0,3,0));
+  query_pointcloud->push_back (pcl::PointXYZ (1,3,0));
+  query_pointcloud->push_back (pcl::PointXYZ (2,3,0));
+  query_pointcloud->push_back (pcl::PointXYZ (3,3,0));
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-TEST (CorrespondenceEstimationLookupTable, DetermineCorrespondencesKdtree)
-{
-  ASSERT_TRUE (true);
-}
+  pcl::Correspondences expected_correspondences;
+  expected_correspondences.push_back (pcl::Correspondence ( 0,0,0));
+  expected_correspondences.push_back (pcl::Correspondence ( 1,0,1));
+  expected_correspondences.push_back (pcl::Correspondence ( 2,0,4));
+  expected_correspondences.push_back (pcl::Correspondence ( 3,0,9));
+  expected_correspondences.push_back (pcl::Correspondence ( 4,0,1));
+  expected_correspondences.push_back (pcl::Correspondence ( 5,0,2));
+  expected_correspondences.push_back (pcl::Correspondence ( 6,0,5));
+  expected_correspondences.push_back (pcl::Correspondence ( 7,1,4));
+  expected_correspondences.push_back (pcl::Correspondence ( 8,0,4));
+  expected_correspondences.push_back (pcl::Correspondence ( 9,0,5));
+  expected_correspondences.push_back (pcl::Correspondence (10,1,2));
+  expected_correspondences.push_back (pcl::Correspondence (11,1,1));
+  expected_correspondences.push_back (pcl::Correspondence (12,0,9));
+  expected_correspondences.push_back (pcl::Correspondence (13,1,4));
+  expected_correspondences.push_back (pcl::Correspondence (14,1,1));
+  expected_correspondences.push_back (pcl::Correspondence (15,1,0));
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-TEST (CorrespondenceEstimationLookupTable, DetermineCorrespondencesDistanceTransform)
-{
-  ASSERT_TRUE (true);
+  pcl::registration::CorrespondenceEstimationLookupTable<pcl::PointXYZ, pcl::PointXYZ, float, double> correspondence_estiamtion_sequential_search;
+  pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ, double>& lut_sequential_search = correspondence_estiamtion_sequential_search.getTargetCorrespondencesLookupTable ();
+  lut_sequential_search.setCellResolution (1.0);
+  lut_sequential_search.setLookupTableMargin (Eigen::Vector3f (0,0,0));
+  correspondence_estiamtion_sequential_search.setInputTarget (pointcloud);
+  correspondence_estiamtion_sequential_search.setInputSource (query_pointcloud);
+  correspondence_estiamtion_sequential_search.setForceNoRecompute (true);
+  ASSERT_TRUE (lut_sequential_search.initLookupTableUsingSequentialPointCloudSearch (pointcloud));
+
+  pcl::registration::CorrespondenceEstimationLookupTable<pcl::PointXYZ, pcl::PointXYZ, float, double> correspondence_estiamtion_kdtree;
+  pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ, double>& lut_kdtree = correspondence_estiamtion_kdtree.getTargetCorrespondencesLookupTable ();
+  lut_kdtree.setCellResolution (1.0);
+  lut_kdtree.setLookupTableMargin (Eigen::Vector3f (0,0,0));
+  correspondence_estiamtion_kdtree.setInputTarget (pointcloud);
+  correspondence_estiamtion_kdtree.setInputSource (query_pointcloud);
+  correspondence_estiamtion_kdtree.setForceNoRecompute (true);
+  ASSERT_TRUE (lut_kdtree.initLookupTableUsingKDTree (pointcloud));
+
+  pcl::registration::CorrespondenceEstimationLookupTable<pcl::PointXYZ, pcl::PointXYZ, float, double> correspondence_estiamtion_distance_transform;
+  pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ, double>& lut_distance_transform = correspondence_estiamtion_distance_transform.getTargetCorrespondencesLookupTable ();
+  lut_distance_transform.setCellResolution (1.0);
+  lut_distance_transform.setLookupTableMargin (Eigen::Vector3f (0,0,0));
+  correspondence_estiamtion_distance_transform.setInputTarget (pointcloud);
+  correspondence_estiamtion_distance_transform.setInputSource (query_pointcloud);
+  correspondence_estiamtion_distance_transform.setForceNoRecompute (true);
+  ASSERT_TRUE (lut_distance_transform.initLookupTableUsingEuclideanDistanceTransform (pointcloud));
+
+  pcl::Correspondences correspondences_sequential_search;
+  correspondence_estiamtion_sequential_search.determineCorrespondences (correspondences_sequential_search, 10);
+  EXPECT_TRUE (correspondences_sequential_search == expected_correspondences);
+
+  pcl::Correspondences correspondences_kdtree;
+  correspondence_estiamtion_kdtree.determineCorrespondences (correspondences_kdtree, 10);
+  EXPECT_TRUE (correspondences_kdtree == expected_correspondences);
+
+  pcl::Correspondences correspondences_distance_transform;
+  correspondence_estiamtion_distance_transform.determineCorrespondences (correspondences_distance_transform, 10);
+  EXPECT_TRUE (correspondences_distance_transform == expected_correspondences);
 }
 
 /* ---[ */
