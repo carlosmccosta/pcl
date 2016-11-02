@@ -284,7 +284,7 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeFirstPha
   size_t maximum_distance = std::pow (number_cells_x_ + number_cells_y_ + number_cells_z_, 2);
   for (size_t z = 0; z < number_cells_z_; ++z)
   {
-//    #pragma omp parallel for default(shared)
+    #pragma omp parallel for default(shared)
     for (int y = 0; y < number_cells_y_int; ++y) // OpenMP supports size_t index only after version 3.0.
     {
       // Forward scan computes the integer distances to the closest interest cells (after they are found).
@@ -328,7 +328,7 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeSecondPh
   int number_cells_x_int = (int)number_cells_x_;
   for (size_t z = 0; z < number_cells_z_; ++z)
   {
-//    #pragma omp parallel for default(shared)
+    #pragma omp parallel for default(shared)
     for (int x = 0; x < number_cells_x_int; ++x) // OpenMP supports size_t index only after version 3.0.
     {
       // Forward scan computes the lower envelop segments.
@@ -362,8 +362,8 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeSecondPh
           // Fig. 3 (b) case.
           // Fy is below the current lower envelop. All old segments are replaced by a single new segment.
           last_segment_index = 0;
-          last_segment_index_distance_squared_to_closest_point = std::pow (getCorrespondence (cell_base_index + y_index_where_closest_interest_cell_was_found[last_segment_index] * number_cells_x_).distance_squared_to_closest_point, 2);
           y_index_where_closest_interest_cell_was_found[0] = y;
+          last_segment_index_distance_squared_to_closest_point = std::pow (getCorrespondence (cell_base_index + y_index_where_closest_interest_cell_was_found[last_segment_index] * number_cells_x_).distance_squared_to_closest_point, 2);
         }
         else
         {
@@ -378,9 +378,9 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeSecondPh
             // Fig. 3 (c) case.
             // Fy intersects the current lower envelop. A new segment is added.
             ++last_segment_index;
-            last_segment_index_distance_squared_to_closest_point = std::pow (getCorrespondence (cell_base_index + y_index_where_closest_interest_cell_was_found[last_segment_index] * number_cells_x_).distance_squared_to_closest_point, 2);
             y_index_where_closest_interest_cell_was_found[last_segment_index] = y;
             y_index_of_intersection_with_previous_parabola[last_segment_index] = sep_plus_one;
+            last_segment_index_distance_squared_to_closest_point = std::pow (getCorrespondence (cell_base_index + y_index_where_closest_interest_cell_was_found[last_segment_index] * number_cells_x_).distance_squared_to_closest_point, 2);
           }
         }
       }
@@ -388,10 +388,10 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::computeSecondPh
       // Backwards scan computes the squared distances.
       for (int y = (int)number_cells_y_ - 1; y >= 0; --y)
       {
-        pcl::registration::CorrespondenceLookupTableCell<DistanceT>& current_cell = getCorrespondence (cell_base_index + y * number_cells_x_);
-        current_cell.distance_squared_to_closest_point = computeMeijsterSquaredEDT (y, y_index_where_closest_interest_cell_was_found[last_segment_index], last_segment_index_distance_squared_to_closest_point);
+        pcl::registration::CorrespondenceLookupTableCell<DistanceT>& current_cell = getCorrespondence (cell_base_index + (size_t)y * number_cells_x_);
+        current_cell.distance_squared_to_closest_point = computeMeijsterSquaredEDT ((size_t)y, y_index_where_closest_interest_cell_was_found[last_segment_index], last_segment_index_distance_squared_to_closest_point);
         current_cell.closest_point_index = getCorrespondence (cell_base_index + y_index_where_closest_interest_cell_was_found[last_segment_index] * number_cells_x_).closest_point_index;
-        if (y == (int)y_index_of_intersection_with_previous_parabola[last_segment_index])
+        if ((size_t)y == y_index_of_intersection_with_previous_parabola[last_segment_index])
         {
           --last_segment_index;
           if (last_segment_index >= 0)
@@ -422,7 +422,7 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::updateCellDista
   float cell_resolution_squared = cell_resolution_ * cell_resolution_;
   for (size_t z = 0; z < number_cells_z_; ++z)
   {
-//    #pragma omp parallel for default(shared)
+    #pragma omp parallel for default(shared)
     for (int y = 0; y < number_cells_y_int; ++y) // OpenMP supports size_t index only after version 3.0.
     {
       size_t cell_index = (size_t)y * number_cells_x_ + z * number_cells_xy_slice_;
