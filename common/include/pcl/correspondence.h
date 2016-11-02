@@ -83,6 +83,17 @@ namespace pcl
     /** \brief Empty destructor. */
     virtual ~Correspondence () {}
     
+    /**
+     * \brief Equality operator for Correspondence.
+     * @param other The other Correspondence for performing comparison.
+     * @return True if the objects are considered equal. False otherwise.
+     */
+    bool
+    operator== (const Correspondence& other) const
+    {
+      return (index_query == other.index_query && index_match == other.index_match && distance == other.distance);
+    }
+
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   };
   
