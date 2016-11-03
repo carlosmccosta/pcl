@@ -226,7 +226,7 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::initLookupTable
   computeFirstPhaseMeijsterAxisX ();
   computeSecondPhaseMeijsterAxisY ();
   computeSecondPhaseMeijsterAxisZ ();
-//  updateCellDistancesWithCellResolution ();
+  updateCellDistancesWithCellResolution ();
 
   PCL_DEBUG ("[pcl::registration::LookupTable::initLookupTableUsingEuclideanDistanceTransform] Initialized correspondence estimation LookupTable with %f resolution containing [x:%i|y:%i|z:%i]=%i cells from a point cloud with %u points\n",
              cell_resolution_, number_cells_x_, number_cells_y_, number_cells_z_, number_cells, pointcloud_->size ());
@@ -419,7 +419,7 @@ void
 pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::updateCellDistancesWithCellResolution ()
 {
   int number_cells_y_int = (int)number_cells_y_;
-  float cell_resolution_squared = cell_resolution_ * cell_resolution_;
+  DistanceT cell_resolution_squared = cell_resolution_ * cell_resolution_;
   for (size_t z = 0; z < number_cells_z_; ++z)
   {
     #pragma omp parallel for default(shared)
@@ -561,9 +561,10 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::operator!= (con
 template <typename PointSource, typename PointTarget, typename Scalar, typename DistanceT> bool
 pcl::registration::CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar, DistanceT>::initComputeReciprocal ()
 {
+  bool source_cloud_updated = source_cloud_updated_;
   if (CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::initComputeReciprocal ())
   {
-    if (!force_no_recompute_reciprocal_)
+    if (source_cloud_updated && !force_no_recompute_reciprocal_)
       return (source_correspondences_lookup_table_.initLookupTable(tree_reciprocal_));
     return (true);
   }
@@ -574,9 +575,10 @@ pcl::registration::CorrespondenceEstimationLookupTable<PointSource, PointTarget,
 template <typename PointSource, typename PointTarget, typename Scalar, typename DistanceT> bool
 pcl::registration::CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar, DistanceT>::initCompute ()
 {
+  bool target_cloud_updated = target_cloud_updated_;
   if (CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::initCompute ())
   {
-    if (!force_no_recompute_)
+    if (target_cloud_updated && !force_no_recompute_)
       return (target_correspondences_lookup_table_.initLookupTable(tree_));
     return (true);
   }

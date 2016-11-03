@@ -195,7 +195,6 @@ TEST (CorrespondenceLookupTable, GetCorrespondence)
   EXPECT_FLOAT_EQ (1, correspondance.closest_point_index);
 }
 
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 TEST (CorrespondenceLookupTable, InitLookupTable2D)
 {
@@ -313,3 +312,4 @@ main (int argc, char** argv)
   return (RUN_ALL_TESTS ());
 }
 /* ]--- */
+
