@@ -627,7 +627,9 @@ namespace pcl
         using CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::initCompute;
         using CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::initComputeReciprocal;
         using CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::input_;
+        using CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::source_cloud_updated_;
         using CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::target_;
+        using CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::target_cloud_updated_;
         using CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::tree_;
         using CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::tree_reciprocal_;
         using PCLBase<PointSource>::deinitCompute;
