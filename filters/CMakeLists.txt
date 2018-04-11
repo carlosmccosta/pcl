@@ -45,6 +45,7 @@ set(srcs
   src/morphological_filter.cpp
   src/local_maximum.cpp
   src/model_outlier_removal.cpp
+  src/scale.cpp
 )
 
 set(incs
@@ -86,6 +87,7 @@ set(incs
   "include/pcl/${SUBSYS_NAME}/morphological_filter.h"
   "include/pcl/${SUBSYS_NAME}/local_maximum.h"
   "include/pcl/${SUBSYS_NAME}/model_outlier_removal.h"
+  "include/pcl/${SUBSYS_NAME}/scale.h"
 )
 
 set(impl_incs
@@ -123,6 +125,7 @@ set(impl_incs
   "include/pcl/${SUBSYS_NAME}/impl/morphological_filter.hpp"
   "include/pcl/${SUBSYS_NAME}/impl/local_maximum.hpp"
   "include/pcl/${SUBSYS_NAME}/impl/model_outlier_removal.hpp"
+  "include/pcl/${SUBSYS_NAME}/impl/scale.hpp"
 )
 
 set(LIB_NAME "pcl_${SUBSYS_NAME}")
