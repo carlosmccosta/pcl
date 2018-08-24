@@ -39,6 +39,8 @@
 
 #pragma once
 
+#include <cmath>
+#include <pcl/common/angles.h>
 #include <pcl/registration/correspondence_types.h>
 #include <pcl/registration/correspondence_estimation.h>
 
@@ -93,10 +95,12 @@ namespace pcl
           , source_normals_transformed_ ()
           , target_normals_ ()
           , k_ (10)
+          , normals_angle_filtering_threshold_ (80.0f)
+          , normals_angle_penalty_factor_ (4.0f)
         {
           corr_name_ = "CorrespondenceEstimationBackProjection";
         }
-      
+
         /** \brief Empty destructor */
         virtual ~CorrespondenceEstimationBackProjection () {}
 
@@ -136,7 +140,7 @@ namespace pcl
           fromPCLPointCloud2 (*cloud2, *cloud);
           setSourceNormals (cloud);
         }
-        
+
         /** \brief See if this rejector requires target normals*/
         bool
         requiresTargetNormals () const
@@ -185,7 +189,39 @@ namespace pcl
           */
         inline unsigned int
         getKSearch () const { return (k_); }
-        
+
+        /** \brief Set the threshold for filtering the correspondences based on their relative angle.
+        * \param[in] threshold the maximum relative angle (in degrees) between the correspondent points normals
+        */
+        inline void
+        setNormalsAngleFilteringThreshold (float threshold)
+        {
+          normals_angle_filtering_threshold_ = threshold;
+        }
+
+        /** \brief Get the threshold for filtering the correspondences based on their relative angle. */
+        inline float
+        getNormalsAngleFilteringThreshold () const
+        {
+          return (normals_angle_filtering_threshold_);
+        }
+
+        /** \brief Set the penalty for the relative angle between correspondence normals.
+        * \param[in] penalty the polynomial degree for penalizing the relative angle between normals
+        */
+        inline void
+        setNormalsAnglePenaltyFactor (float penalty)
+        {
+          normals_angle_penalty_factor_ = penalty;
+        }
+
+        /** \brief Get the penalty for the relative angle between correspondence normals. */
+        inline float
+        getNormalsAnglePenaltyFactor () const
+        {
+          return (normals_angle_penalty_factor_);
+        }
+
         /** \brief Clone and cast to CorrespondenceEstimationBase */
         virtual typename CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::Ptr
         clone () const
@@ -218,6 +254,12 @@ namespace pcl
 
         /** \brief The number of neighbours to be considered in the target point cloud */
         unsigned int k_;
+
+        /** \brief The correspondence filtering threshold based on their normals relative angle */
+        float normals_angle_filtering_threshold_;
+
+        /** \brief The factor used to penalize the relative angle between correspondence normals */
+        float normals_angle_penalty_factor_;
     };
   }
 }
