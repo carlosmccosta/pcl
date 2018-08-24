@@ -81,7 +81,10 @@ pcl::registration::CorrespondenceEstimationBackProjection<PointSource, PointTarg
     // Iterate over the input set of source indices
     for (std::vector<int>::const_iterator idx_i = indices_->begin (); idx_i != indices_->end (); ++idx_i)
     {
-      tree_->nearestKSearch (input_->points[*idx_i], k_, nn_indices, nn_dists);
+      if (k_ > 0)
+        tree_->nearestKSearch (input_->points[*idx_i], k_, nn_indices, nn_dists);
+      else
+        tree_->radiusSearch (input_->points[*idx_i], max_distance, nn_indices, nn_dists);
 
       // Among the K nearest neighbours find the one with minimum perpendicular distance to the normal
       min_dist = std::numeric_limits<float>::max ();
@@ -116,7 +119,10 @@ pcl::registration::CorrespondenceEstimationBackProjection<PointSource, PointTarg
     // Iterate over the input set of source indices
     for (std::vector<int>::const_iterator idx_i = indices_->begin (); idx_i != indices_->end (); ++idx_i)
     {
-      tree_->nearestKSearch (input_->points[*idx_i], k_, nn_indices, nn_dists);
+      if (k_ > 0)
+        tree_->nearestKSearch (input_->points[*idx_i], k_, nn_indices, nn_dists);
+      else
+        tree_->radiusSearch (input_->points[*idx_i], max_distance, nn_indices, nn_dists);
  
       // Among the K nearest neighbours find the one with minimum perpendicular distance to the normal
       min_dist = std::numeric_limits<float>::max ();
@@ -186,7 +192,10 @@ pcl::registration::CorrespondenceEstimationBackProjection<PointSource, PointTarg
     // Iterate over the input set of source indices
     for (std::vector<int>::const_iterator idx_i = indices_->begin (); idx_i != indices_->end (); ++idx_i)
     {
-      tree_->nearestKSearch (input_->points[*idx_i], k_, nn_indices, nn_dists);
+      if (k_ > 0)
+        tree_->nearestKSearch (input_->points[*idx_i], k_, nn_indices, nn_dists);
+      else
+        tree_->radiusSearch (input_->points[*idx_i], max_distance, nn_indices, nn_dists);
 
       // Among the K nearest neighbours find the one with minimum perpendicular distance to the normal
       min_dist = std::numeric_limits<float>::max ();
@@ -228,7 +237,10 @@ pcl::registration::CorrespondenceEstimationBackProjection<PointSource, PointTarg
     // Iterate over the input set of source indices
     for (std::vector<int>::const_iterator idx_i = indices_->begin (); idx_i != indices_->end (); ++idx_i)
     {
-      tree_->nearestKSearch (input_->points[*idx_i], k_, nn_indices, nn_dists);
+      if (k_ > 0)
+        tree_->nearestKSearch (input_->points[*idx_i], k_, nn_indices, nn_dists);
+      else
+        tree_->radiusSearch (input_->points[*idx_i], max_distance, nn_indices, nn_dists);
  
       // Among the K nearest neighbours find the one with minimum perpendicular distance to the normal
       min_dist = std::numeric_limits<float>::max ();
