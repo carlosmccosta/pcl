@@ -95,12 +95,17 @@ pcl::registration::CorrespondenceEstimationBackProjection<PointSource, PointTarg
         float cos_angle = source_normals_->points[*idx_i].normal_x * target_normals_->points[nn_indices[j]].normal_x +
                           source_normals_->points[*idx_i].normal_y * target_normals_->points[nn_indices[j]].normal_y +
                           source_normals_->points[*idx_i].normal_z * target_normals_->points[nn_indices[j]].normal_z ;
-        float dist = nn_dists[j] * (2.0f - cos_angle * cos_angle);
-        
-        if (dist < min_dist)
+
+        if (cos_angle > std::cos (pcl::deg2rad (normals_angle_filtering_threshold_)))
         {
-          min_dist = dist;
-          min_index = static_cast<int> (j);
+          float normals_angle_penalization = std::pow (-cos_angle + 2.0f, normals_angle_penalty_factor_);
+          float dist = nn_dists[j] * normals_angle_penalization;
+
+          if (dist < min_dist)
+          {
+            min_dist = dist;
+            min_index = static_cast<int> (j);
+          }
         }
       }
       if (min_dist > max_distance)
@@ -137,12 +142,17 @@ pcl::registration::CorrespondenceEstimationBackProjection<PointSource, PointTarg
         float cos_angle = source_normals_->points[*idx_i].normal_x * target_normals_->points[nn_indices[j]].normal_x +
                           source_normals_->points[*idx_i].normal_y * target_normals_->points[nn_indices[j]].normal_y +
                           source_normals_->points[*idx_i].normal_z * target_normals_->points[nn_indices[j]].normal_z ;
-        float dist = nn_dists[j] * (2.0f - cos_angle * cos_angle);
-        
-        if (dist < min_dist)
+
+        if (cos_angle > std::cos (pcl::deg2rad (normals_angle_filtering_threshold_)))
         {
-          min_dist = dist;
-          min_index = static_cast<int> (j);
+          float normals_angle_penalization = std::pow (-cos_angle + 2.0f, normals_angle_penalty_factor_);
+          float dist = nn_dists[j] * normals_angle_penalization;
+
+          if (dist < min_dist)
+          {
+            min_dist = dist;
+            min_index = static_cast<int> (j);
+          }
         }
       }
       if (min_dist > max_distance)
@@ -206,12 +216,17 @@ pcl::registration::CorrespondenceEstimationBackProjection<PointSource, PointTarg
         float cos_angle = source_normals_->points[*idx_i].normal_x * target_normals_->points[nn_indices[j]].normal_x +
                           source_normals_->points[*idx_i].normal_y * target_normals_->points[nn_indices[j]].normal_y +
                           source_normals_->points[*idx_i].normal_z * target_normals_->points[nn_indices[j]].normal_z ;
-        float dist = nn_dists[j] * (2.0f - cos_angle * cos_angle);
-        
-        if (dist < min_dist)
+
+        if (cos_angle > std::cos (pcl::deg2rad (normals_angle_filtering_threshold_)))
         {
-          min_dist = dist;
-          min_index = static_cast<int> (j);
+          float normals_angle_penalization = std::pow (-cos_angle + 2.0f, normals_angle_penalty_factor_);
+          float dist = nn_dists[j] * normals_angle_penalization;
+
+          if (dist < min_dist)
+          {
+            min_dist = dist;
+            min_index = static_cast<int> (j);
+          }
         }
       }
       if (min_dist > max_distance)
@@ -255,12 +270,17 @@ pcl::registration::CorrespondenceEstimationBackProjection<PointSource, PointTarg
         float cos_angle = source_normals_->points[*idx_i].normal_x * target_normals_->points[nn_indices[j]].normal_x +
                           source_normals_->points[*idx_i].normal_y * target_normals_->points[nn_indices[j]].normal_y +
                           source_normals_->points[*idx_i].normal_z * target_normals_->points[nn_indices[j]].normal_z ;
-        float dist = nn_dists[j] * (2.0f - cos_angle * cos_angle);
-        
-        if (dist < min_dist)
+
+        if (cos_angle > std::cos (pcl::deg2rad (normals_angle_filtering_threshold_)))
         {
-          min_dist = dist;
-          min_index = static_cast<int> (j);
+          float normals_angle_penalization = std::pow (-cos_angle + 2.0f, normals_angle_penalty_factor_);
+          float dist = nn_dists[j] * normals_angle_penalization;
+
+          if (dist < min_dist)
+          {
+            min_dist = dist;
+            min_index = static_cast<int> (j);
+          }
         }
       }
       if (min_dist > max_distance)
