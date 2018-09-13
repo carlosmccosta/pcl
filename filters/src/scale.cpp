@@ -41,4 +41,4 @@
 
 
 // Instantiations of specific point types
-PCL_INSTANTIATE_PRODUCT(Scale, (PCL_XYZ_POINT_TYPES))
+PCL_INSTANTIATE_PRODUCT(Scale, ((pcl::PointNormal) (pcl::PointXYZRGBNormal) (pcl::PointXYZINormal) (pcl::PointXYZLNormal)))

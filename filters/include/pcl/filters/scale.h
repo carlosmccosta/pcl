@@ -63,7 +63,8 @@ namespace pcl
 
       /** \brief Empty constructor. */
       Scale () :
-        scale_ (0.001)
+        scale_ (0.001),
+        transform_normals_ (true)
       {
         filter_name_ = "Scale";
       }
@@ -82,7 +83,7 @@ namespace pcl
         scale_ = scale;
       }
 
-      /** \brief Set the scale factor.
+      /** \brief Get the scale factor.
         * \param scale Scale factor
         */
       inline double
@@ -91,9 +92,30 @@ namespace pcl
         return scale_;
       }
 
+      /** \brief Set the transform normals flag.
+        * \param transform_normals Transform normals flag
+        */
+      inline void
+      setTransformNormals (bool transform_normals)
+      {
+        transform_normals_ = transform_normals;
+      }
+
+      /** \brief Get the transform normals flag.
+        * \param scale Transform normals flag
+        */
+      inline bool
+      getTransformNormals ()
+      {
+        return transform_normals_;
+      }
+
     protected:
       /** \brief Scale factor. */
       double scale_;
+
+      /** \brief Transform normals flag. */
+      bool transform_normals_;
 
       /** \brief Scales a point cloud
         * \param[out] output the resultant point cloud
