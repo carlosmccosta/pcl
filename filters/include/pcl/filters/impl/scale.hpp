@@ -55,7 +55,11 @@ pcl::Scale<PointT>::applyFilter (PointCloud &output)
   }
 
   Eigen::Matrix4f matrix = Eigen::Matrix4f(Eigen::Matrix4f::Identity()) * scale_;
-  pcl::transformPointCloud<PointT>(*input_, output, matrix);
+
+  if (transform_normals_)
+    pcl::transformPointCloudWithNormals<PointT> (*input_, output, matrix);
+  else
+    pcl::transformPointCloud<PointT> (*input_, output, matrix);
 }
 
 #define PCL_INSTANTIATE_Scale(T) template class PCL_EXPORTS pcl::Scale<T>;
