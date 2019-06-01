@@ -98,6 +98,46 @@ namespace pcl
                       + 0.587f * static_cast <float> (in.g) + 0.114f * static_cast <float> (in.b));
   }
 
+  /** \brief Convert RGB color to HSV
+  * \param[in] r red
+  * \param[in] g green
+  * \param[in] b blue
+  * \param[out] h hue
+  * \param[out] s saturation
+  * \param[out] v value
+  */
+  inline void
+  RGBtoHSV (const uint8_t r, const uint8_t g, const uint8_t b,
+            float& h, float& s, float& v)
+  {
+      const unsigned char max = std::max (r, std::max (g, b));
+      v = static_cast <float> (max) / 255.f;
+
+      if (max == 0) // division by zero
+      {
+          s = 0.f;
+          h = 0.f; // h = -1.f;
+          return;
+      }
+
+      const unsigned char min = std::min (r, std::min (g, b));
+
+      if (min == max) // diff == 0 -> division by zero
+      {
+          h = 0;
+          return;
+      }
+
+      const float diff = static_cast <float> (max - min);
+      s = diff / static_cast <float> (max);
+
+      if      (max == r) h = 60.f * (      static_cast <float> (g - b) / diff);
+      else if (max == g) h = 60.f * (2.f + static_cast <float> (b - r) / diff);
+      else               h = 60.f * (4.f + static_cast <float> (r - g) / diff); // max == b
+
+      if (h < 0.f) h += 360.f;
+  }
+
   /** \brief Convert a XYZRGB point type to a XYZHSV
     * \param[in] in the input XYZRGB point 
     * \param[out] out the output XYZHSV point
@@ -106,33 +146,8 @@ namespace pcl
   PointXYZRGBtoXYZHSV (const PointXYZRGB& in,
                        PointXYZHSV&       out)
   {
-    const unsigned char max = std::max (in.r, std::max (in.g, in.b));
-    const unsigned char min = std::min (in.r, std::min (in.g, in.b));
-
     out.x = in.x; out.y = in.y; out.z = in.z;
-    out.v = static_cast <float> (max) / 255.f;
-
-    if (max == 0) // division by zero
-    {
-      out.s = 0.f;
-      out.h = 0.f; // h = -1.f;
-      return;
-    }
-
-    const float diff = static_cast <float> (max - min);
-    out.s = diff / static_cast <float> (max);
-
-    if (min == max) // diff == 0 -> division by zero
-    {
-      out.h = 0;
-      return;
-    }
-
-    if      (max == in.r) out.h = 60.f * (      static_cast <float> (in.g - in.b) / diff);
-    else if (max == in.g) out.h = 60.f * (2.f + static_cast <float> (in.b - in.r) / diff);
-    else                  out.h = 60.f * (4.f + static_cast <float> (in.r - in.g) / diff); // max == b
-
-    if (out.h < 0.f) out.h += 360.f;
+    RGBtoHSV(in.r, in.g, in.b, out.h, out.s, out.v);
   }
 
   /** \brief Convert a XYZRGB point type to a XYZHSV

@@ -57,6 +57,16 @@ namespace pcl
   }
 
   std::ostream&
+  operator << (std::ostream& os, const HSV& p)
+  {
+    os << "("
+       << static_cast<int>(p.h) << ","
+       << static_cast<int>(p.s) << ","
+       << static_cast<int>(p.v) << ")";
+    return (os);
+  }
+
+  std::ostream&
   operator << (std::ostream& os, const Intensity& p)
   {
     os << "( " << static_cast<int>(p.intensity) << " )";

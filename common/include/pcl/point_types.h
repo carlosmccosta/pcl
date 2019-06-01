@@ -75,6 +75,11 @@ namespace pcl
     */
   struct RGB;
 
+  /** \brief Members: float h, s, v
+  * \ingroup common
+  */
+  struct HSV;
+
   /** \brief Members: intensity (float)
     * \ingroup common
     */
@@ -366,6 +371,13 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (pcl::_RGB,
     (uint32_t, rgba, rgba)
 )
 POINT_CLOUD_REGISTER_POINT_WRAPPER(pcl::RGB, pcl::_RGB)
+
+POINT_CLOUD_REGISTER_POINT_STRUCT (pcl::_HSV,
+    (float, h, h)
+    (float, s, s)
+    (float, v, v)
+)
+POINT_CLOUD_REGISTER_POINT_WRAPPER(pcl::HSV, pcl::_HSV)
 
 POINT_CLOUD_REGISTER_POINT_STRUCT (pcl::_Intensity,
     (float, intensity, intensity)

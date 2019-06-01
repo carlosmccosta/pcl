@@ -254,6 +254,30 @@ namespace pcl
   PCL_ADD_UNION_RGB \
   PCL_ADD_EIGEN_MAPS_RGB
 
+#define PCL_ADD_UNION_HSV \
+  union { \
+    struct { \
+      float h; \
+      float s; \
+      float v; \
+    }; \
+    float data_c[4]; \
+  };
+
+#define PCL_ADD_EIGEN_MAPS_HSV \
+  inline pcl::Vector3fMap getHSVVector3fMap () { return (pcl::Vector3fMap (data_c)); } \
+  inline pcl::Vector3fMapConst getHSVVector3fMap () const { return (pcl::Vector3fMapConst (data_c)); } \
+  inline pcl::Vector4fMap getHSVVector4fMap () { return (pcl::Vector4fMap (data_c)); } \
+  inline pcl::Vector4fMapConst getHSVVector4fMap () const { return (pcl::Vector4fMapConst (data_c)); } \
+  inline pcl::Array3fMap getHSVArray3fMap () { return (pcl::Array3fMap (data_c)); } \
+  inline pcl::Array3fMapConst getHSVArray3fMap () const { return (pcl::Array3fMapConst (data_c)); } \
+  inline pcl::Array4fMap getHSVArray4fMap () { return (pcl::Array4fMap (data_c)); } \
+  inline pcl::Array4fMapConst getHSVArray4fMap () const { return (pcl::Array4fMapConst (data_c)); }
+
+#define PCL_ADD_HSV \
+  PCL_ADD_UNION_HSV \
+  PCL_ADD_EIGEN_MAPS_HSV
+
 #define PCL_ADD_INTENSITY \
     struct \
     { \
@@ -359,6 +383,41 @@ namespace pcl
 
     friend std::ostream& operator << (std::ostream& os, const RGB& p);
   };
+
+#ifdef HSV
+#undef HSV
+#endif
+struct _HSV
+{
+  PCL_ADD_HSV;
+};
+
+PCL_EXPORTS std::ostream& operator << (std::ostream& os, const HSV& p);
+/** \brief A structure representing HSV color information.
+  */
+struct HSV: public _HSV
+{
+  inline HSV (const _HSV &p)
+  {
+    h = p.h;
+    s = p.s;
+    v = p.v;
+  }
+
+  inline HSV ()
+  {
+    h = s = v = 0.0f;
+  }
+
+  inline HSV (float _h, float _s, float _v)
+  {
+    h = _h;
+    s = _s;
+    v = _v;
+  }
+
+  friend std::ostream& operator << (std::ostream& os, const HSV& p);
+};
 
   struct _Intensity
   {
@@ -683,16 +742,7 @@ namespace pcl
   struct _PointXYZHSV
   {
     PCL_ADD_POINT4D;    // This adds the members x,y,z which can also be accessed using the point (which is float[4])
-    union
-    {
-      struct
-      {
-        float h;
-        float s;
-        float v;
-      };
-      float data_c[4];
-    };
+    PCL_ADD_HSV;
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   } EIGEN_ALIGN16;
 
