@@ -66,6 +66,11 @@ namespace pcl
     */
   struct RGB;
 
+  /** \brief Members: float h, s, v
+    * \ingroup common
+    */
+  struct HSV;
+
   /** \brief Members: intensity (float)
     * \ingroup common
     */
