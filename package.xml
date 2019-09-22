@@ -19,11 +19,11 @@
   <buildtool_depend>cmake</buildtool_depend>
   <buildtool_depend>pkg-config</buildtool_depend>
 
-  <depend>libboost-all-dev</depend>
-  <depend>libeigen3-dev</depend>
+  <depend>boost</depend>
+  <depend>eigen</depend>
   <depend>libflann-dev</depend>
-  <depend>libqhull-dev</depend>
-  <depend>libvtk6-dev</depend>
+  <depend>libqhull</depend>
+  <depend>libvtk</depend>
 
   <export>
     <build_type>cmake</build_type>
