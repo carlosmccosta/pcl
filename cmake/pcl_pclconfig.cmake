@@ -94,3 +94,5 @@ install(FILES
         "${PCL_BINARY_DIR}/PCLConfigVersion.cmake"
         COMPONENT pclconfig
         DESTINATION ${PCLCONFIG_INSTALL_DIR})
+
+install(FILES "${PCL_SOURCE_DIR}/package.xml" DESTINATION ${PCLCONFIG_INSTALL_DIR})
