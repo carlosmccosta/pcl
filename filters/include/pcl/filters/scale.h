@@ -35,10 +35,10 @@
  *
  */
 
-#ifndef PCL_FILTERS_SCALE_H_
-#define PCL_FILTERS_SCALE_H_
+#pragma once
 
 #include <pcl/filters/filter.h>
+#include <memory>
 
 namespace pcl
 {
@@ -58,8 +58,8 @@ namespace pcl
     using Filter<PointT>::getClassName;
 
     public:
-      typedef boost::shared_ptr<Scale<PointT> > Ptr;
-      typedef boost::shared_ptr<const Scale<PointT> > ConstPtr;
+      using Ptr = std::shared_ptr<Scale<PointT> >;
+      using ConstPtr = std::shared_ptr<const Scale<PointT> >;
 
       /** \brief Empty constructor. */
       Scale () :
@@ -128,6 +128,3 @@ namespace pcl
 #ifdef PCL_NO_PRECOMPILE
 #include <pcl/filters/impl/scale.hpp>
 #endif
-
-#endif  //#ifndef PCL_FILTERS_SCALE_H_
-
