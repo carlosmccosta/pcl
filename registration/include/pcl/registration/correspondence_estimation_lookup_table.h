@@ -38,8 +38,7 @@
  *
  */
 
-#ifndef PCL_REGISTRATION_CORRESPONDENCE_ESTIMATION_LOOKUP_TABLE_H_
-#define PCL_REGISTRATION_CORRESPONDENCE_ESTIMATION_LOOKUP_TABLE_H_
+#pragma once
 
 #include <algorithm>
 #include <cmath>
@@ -52,6 +51,7 @@
 #include <pcl/pcl_macros.h>
 #include <pcl/common/common.h>
 #include <pcl/common/transforms.h>
+#include <pcl/memory.h>
 #include <pcl/search/search.h>
 #include <pcl/search/kdtree.h>
 #include <pcl/registration/correspondence_types.h>
@@ -617,8 +617,8 @@ namespace pcl
     class CorrespondenceEstimationLookupTable: public CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>
     {
       public:
-        typedef boost::shared_ptr<CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar, DistanceT> > Ptr;
-        typedef boost::shared_ptr<const CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar, DistanceT> > ConstPtr;
+        using Ptr = shared_ptr<CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar, DistanceT> >;
+        using ConstPtr = shared_ptr<const CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar, DistanceT> >;
 
         using CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::corr_name_;
         using CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::force_no_recompute_;
@@ -634,21 +634,21 @@ namespace pcl
         using CorrespondenceEstimationBase<PointSource, PointTarget, Scalar>::tree_reciprocal_;
         using PCLBase<PointSource>::deinitCompute;
 
-        typedef pcl::search::KdTree<PointTarget> KdTree;
-        typedef typename pcl::search::KdTree<PointTarget>::Ptr KdTreePtr;
+        using KdTree = pcl::search::KdTree<PointTarget>;
+        using KdTreePtr = typename pcl::search::KdTree<PointTarget>::Ptr;
 
-        typedef pcl::search::KdTree<PointSource> KdTreeReciprocal;
-        typedef typename KdTree::Ptr KdTreeReciprocalPtr;
+        using KdTreeReciprocal = pcl::search::KdTree<PointSource>;
+        using KdTreeReciprocalPtr = typename KdTree::Ptr;
 
-        typedef pcl::PointCloud<PointSource> PointCloudSource;
-        typedef typename PointCloudSource::Ptr PointCloudSourcePtr;
-        typedef typename PointCloudSource::ConstPtr PointCloudSourceConstPtr;
+        using PointCloudSource = pcl::PointCloud<PointSource>;
+        using PointCloudSourcePtr = typename PointCloudSource::Ptr;
+        using PointCloudSourceConstPtr = typename PointCloudSource::ConstPtr;
 
-        typedef pcl::PointCloud<PointTarget> PointCloudTarget;
-        typedef typename PointCloudTarget::Ptr PointCloudTargetPtr;
-        typedef typename PointCloudTarget::ConstPtr PointCloudTargetConstPtr;
+        using PointCloudTarget = pcl::PointCloud<PointTarget>;
+        using PointCloudTargetPtr = typename PointCloudTarget::Ptr;
+        using PointCloudTargetConstPtr = typename PointCloudTarget::ConstPtr;
 
-        typedef typename KdTree::PointRepresentationConstPtr PointRepresentationConstPtr;
+        using PointRepresentationConstPtr = typename KdTree::PointRepresentationConstPtr;
 
         /** \brief Empty constructor. */
         CorrespondenceEstimationLookupTable ()
@@ -751,7 +751,7 @@ namespace pcl
                                             double max_distance = std::numeric_limits<double>::max ());
 
         /** \brief Clone and cast to CorrespondenceEstimationBase. */
-        virtual boost::shared_ptr< CorrespondenceEstimationBase<PointSource, PointTarget, Scalar> >
+        virtual shared_ptr< CorrespondenceEstimationBase<PointSource, PointTarget, Scalar> >
         clone () const
         {
           Ptr copy (new CorrespondenceEstimationLookupTable<PointSource, PointTarget, Scalar, DistanceT> (*this));
@@ -769,5 +769,3 @@ namespace pcl
 }
 
 #include <pcl/registration/impl/correspondence_estimation_lookup_table.hpp>
-
-#endif /* PCL_REGISTRATION_CORRESPONDENCE_ESTIMATION_LOOKUP_TABLE_H_ */
