@@ -504,7 +504,8 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::operator== (con
       number_cells_y_ == lut.getNumberOfCellsYAxis () &&
       number_cells_z_ == lut.getNumberOfCellsZAxis () &&
       cell_resolution_ == lut.getCellResolution () &&
-      lookup_table_margin_ == lut.getLookupTableMargin ())
+      minimum_bounds_ == lut.getMinimumBounds() &&
+      maximum_bounds_ == lut.getMaximumBounds())
   {
     size_t cell_index = 0;
     for (size_t z = 0; z < number_cells_z_; ++z)
@@ -535,7 +536,8 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::operator!= (con
       number_cells_y_ == lut.getNumberOfCellsYAxis () &&
       number_cells_z_ == lut.getNumberOfCellsZAxis () &&
       cell_resolution_ == lut.getCellResolution () &&
-      lookup_table_margin_ == lut.getLookupTableMargin ())
+      minimum_bounds_ == lut.getMinimumBounds() &&
+      maximum_bounds_ == lut.getMaximumBounds())
   {
     size_t cell_index = 0;
     for (size_t z = 0; z < number_cells_z_; ++z)
