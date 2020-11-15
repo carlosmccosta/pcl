@@ -100,7 +100,7 @@ namespace pcl
       bool
       operator== (const CorrespondenceLookupTableCell<DistanceT>& cell) const
       {
-        return (closest_point_index == cell.closest_point_index && distance_squared_to_closest_point == cell.distance_squared_to_closest_point);
+        return (closest_point_index == cell.closest_point_index);
       }
 
       /**
@@ -111,7 +111,7 @@ namespace pcl
       bool
       operator!= (const CorrespondenceLookupTableCell<DistanceT>& cell) const
       {
-        return (closest_point_index != cell.closest_point_index || distance_squared_to_closest_point != cell.distance_squared_to_closest_point);
+        return (closest_point_index != cell.closest_point_index);
       }
     };
 
