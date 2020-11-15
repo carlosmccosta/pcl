@@ -37,10 +37,20 @@
 *
 */
 
+#include <iostream>
+#include <vector>
 #include <gtest/gtest.h>
 #include <Eigen/Core>
+#include <pcl/common/generate.h>
+#include <pcl/common/random.h>
+#include <pcl/common/time.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/io/ply_io.h>
 #include <pcl/point_types.h>
 #include <pcl/registration/correspondence_estimation_lookup_table.h>
+
+
+std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> testing_pointclouds;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 TEST (CorrespondenceLookupTable, ComputeLookupTableBounds)
@@ -304,12 +314,100 @@ TEST (CorrespondenceEstimationLookupTable, DetermineCorrespondences2D)
   EXPECT_TRUE (correspondences_distance_transform == expected_correspondences);
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+TEST (CorrespondenceLookupTable, InitLookupTable3D)
+{
+  pcl::StopWatch stop_watch;
+  double stop_watch_seconds;
+  for (size_t i = 0; i < testing_pointclouds.size(); ++i) {
+    pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ, double> lut_sequential_search;
+    lut_sequential_search.setCellResolution (0.005f);
+    lut_sequential_search.setLookupTableMargin (Eigen::Vector3f (0.025f, 0.025f, 0.025f));
+
+    pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ, double> lut_kdtree;
+    lut_kdtree.setCellResolution (0.005f);
+    lut_kdtree.setLookupTableMargin (Eigen::Vector3f (0.025f, 0.025f, 0.025f));
+
+    pcl::registration::CorrespondenceLookupTable<pcl::PointXYZ, double> lut_distance_transform;
+    lut_distance_transform.setCellResolution (0.005f);
+    lut_distance_transform.setLookupTableMargin (Eigen::Vector3f (0.025f,0.025f,0.025f));
+
+    stop_watch.reset();
+    ASSERT_TRUE (lut_sequential_search.initLookupTableUsingSequentialPointCloudSearch (testing_pointclouds[i]));
+    stop_watch_seconds = stop_watch.getTimeSeconds();
+    std::cout << "[CorrespondenceLookupTable::InitLookupTable3D] Time for initializing LUT ("
+      << lut_sequential_search.getNumberOfCellsXAxis() << " x "
+      << lut_sequential_search.getNumberOfCellsYAxis() << " x "
+      << lut_sequential_search.getNumberOfCellsZAxis() << ")"
+      << " using sequential search for point cloud " << i << ": " << stop_watch_seconds << " seconds" << std::endl;
+
+    stop_watch.reset();
+    typename pcl::search::KdTree<pcl::PointXYZ>::Ptr search_tree (new pcl::search::KdTree<pcl::PointXYZ> ());
+    search_tree->setInputCloud (testing_pointclouds[i]);
+    stop_watch_seconds = stop_watch.getTimeSeconds();
+    std::cout << "[CorrespondenceLookupTable::InitLookupTable3D] Time for initializing kdtree for point cloud " << i << ": " << stop_watch_seconds << " seconds" << std::endl;
+    stop_watch.reset();
+    ASSERT_TRUE (lut_kdtree.initLookupTableUsingKDTree (search_tree));
+    stop_watch_seconds = stop_watch.getTimeSeconds();
+    std::cout << "[CorrespondenceLookupTable::InitLookupTable3D] Time for initializing LUT ("
+      << lut_kdtree.getNumberOfCellsXAxis() << " x "
+      << lut_kdtree.getNumberOfCellsYAxis() << " x "
+      << lut_kdtree.getNumberOfCellsZAxis() << ")"
+      << " using kdtree search for point cloud " << i << ": " << stop_watch_seconds << " seconds" << std::endl;
+
+    stop_watch.reset();
+    ASSERT_TRUE (lut_distance_transform.initLookupTableUsingEuclideanDistanceTransform (testing_pointclouds[i]));
+    stop_watch_seconds = stop_watch.getTimeSeconds();
+    std::cout << "[CorrespondenceLookupTable::InitLookupTable3D] Time for initializing LUT ("
+      << lut_distance_transform.getNumberOfCellsXAxis() << " x "
+      << lut_distance_transform.getNumberOfCellsYAxis() << " x "
+      << lut_distance_transform.getNumberOfCellsZAxis() << ")"
+      << " using Meijster distance transform for point cloud " << i << ": " << stop_watch_seconds << " seconds" << std::endl;
+
+    EXPECT_TRUE (lut_sequential_search == lut_kdtree);
+    EXPECT_TRUE (lut_sequential_search == lut_distance_transform);
+  }
+}
+
+void
+loadGeneratedPointCloud ()
+{
+  const int seed = 1337;
+  pcl::common::CloudGenerator<pcl::PointXYZ, pcl::common::UniformGenerator<float>> generator;
+  pcl::common::UniformGenerator<float>::Parameters x_params(-0.12, 0.12, seed + 1);
+  generator.setParametersForX(x_params);
+  pcl::common::UniformGenerator<float>::Parameters y_params(-0.10, 0.10, seed + 2);
+  generator.setParametersForY(y_params);
+  pcl::common::UniformGenerator<float>::Parameters z_params(-0.07, 0.07, seed + 3);
+  generator.setParametersForZ(z_params);
+  pcl::PointCloud<pcl::PointXYZ>::Ptr generated_pointcloud(new pcl::PointCloud<pcl::PointXYZ>);
+  generator.fill(100, 100, *generated_pointcloud);
+  testing_pointclouds.push_back(generated_pointcloud);
+  pcl::io::savePLYFile("/tmp/test_correspondence_estimation_lookup_table_3d_pointcloud_for_lut.ply", *generated_pointcloud, false);
+}
+
+void
+loadPointCloudsFromArguments (int argc, char** argv)
+{
+  for (size_t i = 1; i < argc; ++i)
+  {
+    pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud(new pcl::PointCloud<pcl::PointXYZ>);
+    if (pcl::io::loadPCDFile(std::string(argv[i]), *pointcloud) == 0 && !pointcloud->empty())
+    {
+      testing_pointclouds.push_back(pointcloud);
+    }
+  }
+}
+
 /* ---[ */
 int
 main (int argc, char** argv)
 {
   testing::InitGoogleTest (&argc, argv);
+
+  loadGeneratedPointCloud ();
+  loadPointCloudsFromArguments (argc, argv);
+
   return (RUN_ALL_TESTS ());
 }
 /* ]--- */
-
