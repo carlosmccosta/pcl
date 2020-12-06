@@ -99,14 +99,14 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::initLookupTable
   lookup_table_.clear ();
   lookup_table_.resize (number_cells);
 
-  std::vector<int> index (1);
-  std::vector<float> distance (1);
-  int correspondence_number = 0;
-  PointT query_point;
-  query_point.z = minimum_bounds_(2) + cell_resolution_half_;
-
+  #pragma omp parallel for default(shared)
   for (size_t z = 0; z < number_cells_z_; ++z)
   {
+    std::vector<int> index (1);
+    std::vector<float> distance (1);
+    int correspondence_number = z * number_cells_y_ * number_cells_x_;
+    PointT query_point;
+    query_point.z = minimum_bounds_(2) + cell_resolution_half_ + z * cell_resolution_;
     query_point.y = minimum_bounds_(1) + cell_resolution_half_;
     for (size_t y = 0; y < number_cells_y_; ++y)
     {
@@ -121,7 +121,6 @@ pcl::registration::CorrespondenceLookupTable<PointT, DistanceT>::initLookupTable
       }
       query_point.y += cell_resolution_;
     }
-    query_point.z += cell_resolution_;
   }
 
   PCL_DEBUG ("[pcl::registration::LookupTable::initLookupTable] Initialized correspondence estimation LookupTable with %f resolution containing [x:%u|y:%u|z:%u]=%u cells from a point cloud with %u points\n",
