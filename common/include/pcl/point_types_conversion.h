@@ -158,33 +158,8 @@ namespace pcl
   PointXYZRGBAtoXYZHSV (const PointXYZRGBA& in,
                         PointXYZHSV&        out)
   {
-    const unsigned char max = std::max (in.r, std::max (in.g, in.b));
-    const unsigned char min = std::min (in.r, std::min (in.g, in.b));
-
     out.x = in.x; out.y = in.y; out.z = in.z;
-    out.v = static_cast <float> (max) / 255.f;
-
-    if (max == 0) // division by zero
-    {
-      out.s = 0.f;
-      out.h = 0.f;
-      return;
-    }
-
-    const float diff = static_cast <float> (max - min);
-    out.s = diff / static_cast <float> (max);
-
-    if (min == max) // diff == 0 -> division by zero
-    {
-      out.h = 0;
-      return;
-    }
-
-    if      (max == in.r) out.h = 60.f * (      static_cast <float> (in.g - in.b) / diff);
-    else if (max == in.g) out.h = 60.f * (2.f + static_cast <float> (in.b - in.r) / diff);
-    else                  out.h = 60.f * (4.f + static_cast <float> (in.r - in.g) / diff); // max == b
-
-    if (out.h < 0.f) out.h += 360.f;
+    RGBtoHSV(in.r, in.g, in.b, out.h, out.s, out.v);
   }
 
   /* \brief Convert a XYZHSV point type to a XYZRGB
