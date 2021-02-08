@@ -162,6 +162,77 @@ namespace pcl
     RGBtoHSV(in.r, in.g, in.b, out.h, out.s, out.v);
   }
 
+  /** \brief Convert HSV color to RGB
+    * \param[in] h hue
+    * \param[in] s saturation
+    * \param[in] v value
+    * \param[out] r red
+    * \param[out] g green
+    * \param[out] b blue
+    */
+  inline void
+  HSVtoRGB (float h, float s, float v,
+            uint8_t& r, uint8_t& g, uint8_t& b)
+  {
+    if (s == 0)
+    {
+      r = g = b = static_cast<std::uint8_t> (255 * v);
+      return;
+    }
+    float a = h / 60;
+    int   i = static_cast<int> (std::floor (a));
+    float f = a - static_cast<float> (i);
+    float p = v * (1 - s);
+    float q = v * (1 - s * f);
+    float t = v * (1 - s * (1 - f));
+
+    switch (i)
+    {
+      case 0:
+      {
+        r = static_cast<std::uint8_t> (255 * v);
+        g = static_cast<std::uint8_t> (255 * t);
+        b = static_cast<std::uint8_t> (255 * p);
+        break;
+      }
+      case 1:
+      {
+        r = static_cast<std::uint8_t> (255 * q);
+        g = static_cast<std::uint8_t> (255 * v);
+        b = static_cast<std::uint8_t> (255 * p);
+        break;
+      }
+      case 2:
+      {
+        r = static_cast<std::uint8_t> (255 * p);
+        g = static_cast<std::uint8_t> (255 * v);
+        b = static_cast<std::uint8_t> (255 * t);
+        break;
+      }
+      case 3:
+      {
+        r = static_cast<std::uint8_t> (255 * p);
+        g = static_cast<std::uint8_t> (255 * q);
+        b = static_cast<std::uint8_t> (255 * v);
+        break;
+      }
+      case 4:
+      {
+        r = static_cast<std::uint8_t> (255 * t);
+        g = static_cast<std::uint8_t> (255 * p);
+        b = static_cast<std::uint8_t> (255 * v);
+        break;
+      }
+      default:
+      {
+        r = static_cast<std::uint8_t> (255 * v);
+        g = static_cast<std::uint8_t> (255 * p);
+        b = static_cast<std::uint8_t> (255 * q);
+        break;
+      }
+    }
+  }
+
   /* \brief Convert a XYZHSV point type to a XYZRGB
     * \param[in] in the input XYZHSV point 
     * \param[out] out the output XYZRGB point
@@ -171,63 +242,7 @@ namespace pcl
                        PointXYZRGB&        out)
   {
     out.x = in.x; out.y = in.y; out.z = in.z;
-    if (in.s == 0)
-    {
-      out.r = out.g = out.b = static_cast<std::uint8_t> (255 * in.v);
-      return;
-    } 
-    float a = in.h / 60;
-    int   i = static_cast<int> (std::floor (a));
-    float f = a - static_cast<float> (i);
-    float p = in.v * (1 - in.s);
-    float q = in.v * (1 - in.s * f);
-    float t = in.v * (1 - in.s * (1 - f));
-
-    switch (i)
-    {
-      case 0:
-      {
-        out.r = static_cast<std::uint8_t> (255 * in.v);
-        out.g = static_cast<std::uint8_t> (255 * t);
-        out.b = static_cast<std::uint8_t> (255 * p);
-        break;
-      }
-      case 1:
-      {
-        out.r = static_cast<std::uint8_t> (255 * q); 
-        out.g = static_cast<std::uint8_t> (255 * in.v); 
-        out.b = static_cast<std::uint8_t> (255 * p); 
-        break;
-      }
-      case 2:
-      {
-        out.r = static_cast<std::uint8_t> (255 * p);
-        out.g = static_cast<std::uint8_t> (255 * in.v);
-        out.b = static_cast<std::uint8_t> (255 * t);
-        break;
-      }
-      case 3:
-      {
-        out.r = static_cast<std::uint8_t> (255 * p);
-        out.g = static_cast<std::uint8_t> (255 * q);
-        out.b = static_cast<std::uint8_t> (255 * in.v);
-        break;
-      }
-      case 4:
-      {
-        out.r = static_cast<std::uint8_t> (255 * t);
-        out.g = static_cast<std::uint8_t> (255 * p); 
-        out.b = static_cast<std::uint8_t> (255 * in.v); 
-        break;
-      }
-      default:
-      {
-        out.r = static_cast<std::uint8_t> (255 * in.v); 
-        out.g = static_cast<std::uint8_t> (255 * p); 
-        out.b = static_cast<std::uint8_t> (255 * q);
-        break;
-      }      
-    }
+    HSVtoRGB(in.h, in.s, in.v, out.r, out.g, out.b);
   }
 
   /** \brief Convert a RGB point cloud to an Intensity
